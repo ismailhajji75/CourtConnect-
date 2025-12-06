@@ -1,77 +1,54 @@
-import React, { useState, createContext, useContext, ReactNode, useEffect } from "react";
-import { User } from "../types";
+import { createContext, useContext, useState } from "react";
+
+interface User {
+  email: string;
+}
 
 interface AuthContextType {
   user: User | null;
+  isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  updateProfile: (updates: Partial<User>) => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-
-  // Load user from localStorage on refresh
-  useEffect(() => {
-    const savedUser = localStorage.getItem("cc_user");
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-  }, []);
-
-  // Save user to localStorage whenever it changes
-  useEffect(() => {
-    if (user) localStorage.setItem("cc_user", JSON.stringify(user));
-    else localStorage.removeItem("cc_user");
-  }, [user]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const auiEmailRegex = /^[a-zA-Z0-9._%+-]+@aui\.ma$/;
+    // Fake AUI validation
+    const isAUI = /^[a-z]\.[a-z]+@aui\.ma$/i.test(email);
 
-    if (!auiEmailRegex.test(email)) return false;
-    if (password.length === 0) return false;
+    if (!isAUI) return false;
 
-    const namePart = email.split("@")[0];
-    const parts = namePart.split(".");
-
-    const firstName = parts[0] || "User";
-    const lastName = parts[1] || "";
-
-    const userData: User = {
-      email,
-      firstName: firstName.charAt(0).toUpperCase() + firstName.slice(1),
-      lastName: lastName ? lastName.charAt(0).toUpperCase() + lastName.slice(1) : "",
-      profilePicture: undefined,
-    };
-
-    setUser(userData);
+    setUser({ email });
+    setIsAuthenticated(true);
     return true;
   };
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem("cc_user");
-  };
-
-  const updateProfile = (updates: Partial<User>) => {
-    if (user) {
-      const updated = { ...user, ...updates };
-      setUser(updated);
-      localStorage.setItem("cc_user", JSON.stringify(updated));
-    }
+    setIsAuthenticated(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, logout, updateProfile }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) throw new Error("useAuth must be used within AuthProvider");
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 }

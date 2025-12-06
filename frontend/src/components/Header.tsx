@@ -1,27 +1,32 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom"; // ⭐ ADDED navigate
 import { motion } from "framer-motion";
 import { HomeIcon, CalendarIcon, UserIcon, LogOutIcon } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate(); // ⭐ REQUIRED FOR REDIRECT
   const { logout, isAuthenticated } = useAuth();
 
-  // ⭐ Hide header on login page or admin pages
+  // Hide Header on login + admin pages
   const hideHeader =
     location.pathname === "/login" ||
     location.pathname.startsWith("/admin");
 
-  if (hideHeader || !isAuthenticated) {
-    return null; // Do NOT render header
-  }
+  if (hideHeader || !isAuthenticated) return null;
 
   const navItems = [
     { id: "home", label: "Home", icon: HomeIcon, path: "/home" },
     { id: "bookings", label: "My Bookings", icon: CalendarIcon, path: "/bookings" },
     { id: "profile", label: "Profile", icon: UserIcon, path: "/profile" },
-    ];
+  ];
+
+  // ⭐ UPDATED LOGOUT HANDLER
+  const handleLogout = () => {
+    logout();
+    navigate("/login"); // ⭐ Redirect to login page
+  };
 
   return (
     <header className="w-full py-4 px-6 flex items-center justify-between bg-white shadow-sm">
@@ -44,7 +49,6 @@ export default function Header() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                {/* Animated Background */}
                 {isActive && (
                   <motion.div
                     layoutId="navActivePill"
@@ -54,7 +58,6 @@ export default function Header() {
                   />
                 )}
 
-                {/* Icon */}
                 <Icon
                   className="w-5 h-5"
                   color={isActive ? "#FFFFFF" : "#063830"}
@@ -68,7 +71,7 @@ export default function Header() {
       </nav>
 
       {/* Logout Button */}
-      <button onClick={logout} className="p-2 hover:opacity-70 transition">
+      <button onClick={handleLogout} className="p-2 hover:opacity-70 transition">
         <LogOutIcon className="w-6 h-6 text-[#063830]" />
       </button>
     </header>
