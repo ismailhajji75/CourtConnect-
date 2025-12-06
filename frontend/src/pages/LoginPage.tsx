@@ -4,6 +4,12 @@ import { useAuth } from '../hooks/useAuth';
 import { motion } from 'framer-motion';
 import { LogInIcon, MailIcon, LockIcon } from 'lucide-react';
 
+// ⭐⭐⭐ SUPER ADMIN CREDENTIALS
+const SUPERADMIN = {
+  email: "superadmin@courtconnect.com",
+  password: "Q!7zP@92kL#tX4mB"
+};
+
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();   // ⭐ ADD THIS
@@ -18,6 +24,15 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
+    // ⭐⭐⭐ SUPER ADMIN FRONTEND CHECK
+    if (email === SUPERADMIN.email && password === SUPERADMIN.password) {
+
+      // ⭐ REDIRECT TO INTERNAL ADMIN DASHBOARD
+      window.location.href = "/admin/dashboard";
+      return;
+    }
+
+    // Normal login flow
     const success = await login(email, password);
 
     if (!success) {
@@ -26,8 +41,7 @@ export default function LoginPage() {
       return;
     }
 
-    // ⭐⭐⭐ FIX: Redirect user after successful login
-    navigate("/home");
+    navigate("/home");  // normal user redirect
   };
 
   return (

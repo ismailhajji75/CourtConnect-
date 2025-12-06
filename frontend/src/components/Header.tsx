@@ -6,13 +6,22 @@ import { useAuth } from "../hooks/useAuth";
 
 export default function Header() {
   const location = useLocation();
-  const { logout } = useAuth();
+  const { logout, isAuthenticated } = useAuth();
+
+  // ⭐ Hide header on login page or admin pages
+  const hideHeader =
+    location.pathname === "/login" ||
+    location.pathname.startsWith("/admin");
+
+  if (hideHeader || !isAuthenticated) {
+    return null; // Do NOT render header
+  }
 
   const navItems = [
     { id: "home", label: "Home", icon: HomeIcon, path: "/home" },
     { id: "bookings", label: "My Bookings", icon: CalendarIcon, path: "/bookings" },
     { id: "profile", label: "Profile", icon: UserIcon, path: "/profile" },
-  ];
+    ];
 
   return (
     <header className="w-full py-4 px-6 flex items-center justify-between bg-white shadow-sm">
@@ -45,8 +54,8 @@ export default function Header() {
                   />
                 )}
 
-                {/* Icon with correct color */}
-                <Icon 
+                {/* Icon */}
+                <Icon
                   className="w-5 h-5"
                   color={isActive ? "#FFFFFF" : "#063830"}
                 />
