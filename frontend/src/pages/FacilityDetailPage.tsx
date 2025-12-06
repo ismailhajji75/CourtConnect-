@@ -37,7 +37,7 @@ export default function FacilityDetailPage() {
 
   const timeSlots = generateTimeSlots(facility.id, selectedDate);
 
-  // Base price (lights + equipment) for non-bicycles
+  // Base price (lights) for non-bicycles
   const basePrice = selectedTime ? calculatePrice(facility.id, selectedTime, []) : 0;
 
   // 🛞 Special pricing for bicycles based on type + rental plan
@@ -88,7 +88,7 @@ export default function FacilityDetailPage() {
   };
 
   // -------------------------
-  // BOOKING LOGIC (FIXED)
+  // BOOKING LOGIC
   // -------------------------
   const handleBooking = () => {
     if (!selectedTime) return;
@@ -99,6 +99,7 @@ export default function FacilityDetailPage() {
       return;
     }
 
+    // Selected (optional) equipment with quantities
     const selectedEquipment = Object.entries(equipment)
       .filter(([_, qty]) => qty > 0)
       .map(([id, qty]) => {
@@ -106,13 +107,11 @@ export default function FacilityDetailPage() {
         return { name: item?.name || "", quantity: qty };
       });
 
-    facility.availableEquipment
-      .filter((item) => item.included)
-      .forEach((item) =>
-        selectedEquipment.push({ name: item.name, quantity: item.quantity })
-      );
+    // Add included equipment info (1x each)
+    facility.includedEquipment.forEach((name) => {
+      selectedEquipment.push({ name, quantity: 1 });
+    });
 
-    // Any price > 0 means the booking is pending (needs payment)
     const requiresPayment = price > 0;
 
     addBooking({
@@ -176,193 +175,349 @@ export default function FacilityDetailPage() {
         />
       )}
 
-      {/* DATE PICKER */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <CalendarIcon className="w-5 h-5" style={{ color: "#6CABA8" }} />
-          <h2 className="text-xl font-bold" style={{ color: "#063830" }}>
-            Select Date
-          </h2>
-        </div>
+      {/* 🔁 TWO MODES:
+          - bookingRequired = false  → walk-in info (e.g. Basketball)
+          - bookingRequired = true   → normal booking flow
+      */}
 
-        <div className="grid grid-cols-7 gap-2">
-          {dates.map((date) => {
-            const isSelected = date.toDateString() === selectedDate.toDateString();
-            return (
-              <button
-                key={date.toISOString()}
-                onClick={() => setSelectedDate(date)}
-                className="p-3 rounded-lg"
-                style={{
-                  backgroundColor: isSelected ? "#063830" : "white",
-                  color: isSelected ? "white" : "#063830",
-                  border: `2px solid ${isSelected ? "#063830" : "#6CABA8"}`,
-                }}
-              >
-                <div className="text-xs font-medium">
-                  {date.toLocaleDateString("en-US", { weekday: "short" })}
-                </div>
-                <div className="text-lg font-bold">{date.getDate()}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {!facility.bookingRequired ? (
+        /* ---------------- WALK-IN ONLY LAYOUT (Basketball) ---------------- */
+        <div className="bg-white rounded-2xl shadow-lg p-6">
+          <div className="grid md:grid-cols-2 gap-6">
+            {/* Left: Operating hours + equipment text */}
+            <div className="space-y-4">
+              <div>
+                <h2 className="text-lg font-semibold text-[#063830] mb-2">
+                  Operating Hours
+                </h2>
+                <p className="text-sm text-gray-700">
+                  Mon–Fri: {facility.hours.weekday}
+                  <br />
+                  Sat–Sun: {facility.hours.weekend}
+                </p>
+              </div>
 
-      {/* TIME SLOTS */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
-        <div className="flex items-center gap-2 mb-4">
-          <ClockIcon className="w-5 h-5" style={{ color: "#6CABA8" }} />
-          <h2 className="text-xl font-bold" style={{ color: "#063830" }}>
-            Select Time
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
-          {timeSlots.map((time) => {
-            const isSelected = selectedTime === time;
-            const hour = parseInt(time.split(":")[0]);
-            const lightingHour = parseInt(facility.lightingStartTime.split(":")[0]);
-            const extraFee =
-              facility.type === "bicycles"
-                ? null
-                : hour >= lightingHour
-                ? facility.lightingFee
-                : null;
-
-            return (
-              <button
-                key={time}
-                onClick={() => handleTimeSelect(time)}
-                className="flex flex-col items-center justify-center p-3 rounded-lg"
-                style={{
-                  backgroundColor: isSelected ? "#063830" : "white",
-                  color: isSelected ? "white" : "#063830",
-                  border: `2px solid ${isSelected ? "#063830" : "#6CABA8"}`,
-                  height: "70px",
-                }}
-              >
-                <span className="font-semibold">{time}</span>
-
-                {extraFee && (
-                  <span
-                    className="text-xs font-medium"
-                    style={{ color: isSelected ? "#D8F2ED" : "#6CABA8" }}
-                  >
-                    +{extraFee} MAD
-                  </span>
+              <div>
+                <h2 className="text-lg font-semibold text-[#063830] mb-2">
+                  Equipment
+                </h2>
+                {facility.type === "basketball" ? (
+                  <p className="text-sm text-gray-700">
+                    Bring your own equipment.
+                    <br />
+                    Free basketball rental available on-site.
+                  </p>
+                ) : (
+                  <p className="text-sm text-gray-700">
+                    Equipment available on-site.
+                  </p>
                 )}
-              </button>
-            );
-          })}
+              </div>
+
+              <div>
+                <h2 className="text-lg font-semibold text-[#063830] mb-2">
+                  Important Notes
+                </h2>
+                <ul className="list-disc list-inside text-sm text-gray-700">
+                  {facility.notes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            {/* Right: Walk-in callout */}
+            <div className="flex flex-col justify-center">
+              <div className="bg-[#D8F2ED] rounded-xl p-6 text-center mb-4">
+                <h2 className="text-xl font-bold text-[#063830] mb-2">
+                  Walk-In Only
+                </h2>
+                <p className="text-sm text-gray-700">
+                  No booking required. First-come, first-served.
+                  <br />
+                  Free equipment rental available on-site.
+                </p>
+              </div>
+              {facility.capacity && (
+                <p className="text-sm text-gray-600 text-center">
+                  Capacity: First-come, first-served (approx. {facility.capacity} people)
+                </p>
+              )}
+            </div>
+          </div>
         </div>
-      </div>
-
-      {/* BOOKING SUMMARY */}
-      {selectedTime && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-white rounded-2xl shadow-lg p-6"
-        >
-          <h2
-            className="text-xl font-bold mb-4"
-            style={{ color: "#063830" }}
-          >
-            Booking Summary
-          </h2>
-
-          <div className="space-y-3 mb-4">
-            <div className="flex justify-between">
-              <span className="text-gray-600">Facility</span>
-              <span className="font-medium">{facility.name}</span>
+      ) : (
+        /* ---------------- NORMAL BOOKING FLOW ---------------- */
+        <>
+          {/* DATE PICKER */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <CalendarIcon className="w-5 h-5" style={{ color: "#6CABA8" }} />
+              <h2 className="text-xl font-bold" style={{ color: "#063830" }}>
+                Select Date
+              </h2>
             </div>
 
-            <div className="flex justify-between">
-              <span className="text-gray-600">Date</span>
-              <span className="font-medium">
-                {selectedDate.toLocaleDateString()}
-              </span>
-            </div>
-
-            <div className="flex justify-between">
-              <span className="text-gray-600">Time</span>
-              <span className="font-medium">{selectedTime}</span>
-            </div>
-
-            {/* 🛞 Extra options only for bicycles */}
-            {facility.type === "bicycles" && (
-              <>
-                {/* Bike type inside summary (1B) */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Bike Type</span>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => setBikeType("normal")}
-                      className="px-3 py-1 rounded-full text-sm font-medium"
-                      style={{
-                        backgroundColor:
-                          bikeType === "normal" ? "#063830" : "#D8F2ED",
-                        color: bikeType === "normal" ? "white" : "#063830",
-                      }}
-                    >
-                      Normal
-                    </button>
-                    <button
-                      onClick={() => setBikeType("pro")}
-                      className="px-3 py-1 rounded-full text-sm font-medium"
-                      style={{
-                        backgroundColor:
-                          bikeType === "pro" ? "#063830" : "#D8F2ED",
-                        color: bikeType === "pro" ? "white" : "#063830",
-                      }}
-                    >
-                      Professional
-                    </button>
-                  </div>
-                </div>
-
-                {/* Rental plan via modal (2C) */}
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Rental Duration</span>
+            <div className="grid grid-cols-7 gap-2">
+              {dates.map((date) => {
+                const isSelected = date.toDateString() === selectedDate.toDateString();
+                return (
                   <button
-                    onClick={() => setShowPlanModal(true)}
-                    className="px-3 py-1 rounded-lg text-sm font-medium"
-                    style={{ backgroundColor: "#D8F2ED", color: "#063830" }}
+                    key={date.toISOString()}
+                    onClick={() => setSelectedDate(date)}
+                    className="p-3 rounded-lg"
+                    style={{
+                      backgroundColor: isSelected ? "#063830" : "white",
+                      color: isSelected ? "white" : "#063830",
+                      border: `2px solid ${isSelected ? "#063830" : "#6CABA8"}`,
+                    }}
                   >
-                    {rentalPlan
-                      ? (() => {
-                          switch (rentalPlan) {
-                            case "2h":
-                              return "2 Hours";
-                            case "daily":
-                              return "Daily";
-                            case "3d":
-                              return "3 Days";
-                            case "weekly":
-                              return "Weekly";
-                          }
-                        })()
-                      : "Choose Plan"}
+                    <div className="text-xs font-medium">
+                      {date.toLocaleDateString("en-US", { weekday: "short" })}
+                    </div>
+                    <div className="text-lg font-bold">{date.getDate()}</div>
                   </button>
-                </div>
-              </>
-            )}
-
-            <div className="flex justify-between text-lg font-bold border-t pt-3">
-              <span>Total</span>
-              <span>{price} MAD</span>
+                );
+              })}
             </div>
           </div>
 
-          <button
-            onClick={handleBooking}
-            className="w-full py-4 rounded-lg mt-2 text-white"
-            style={{ backgroundColor: "#063830" }}
-          >
-            {price > 0 ? "Send Booking Request" : "Confirm Booking"}
-          </button>
-        </motion.div>
+          {/* TIME SLOTS */}
+          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <ClockIcon className="w-5 h-5" style={{ color: "#6CABA8" }} />
+              <h2 className="text-xl font-bold" style={{ color: "#063830" }}>
+                Select Time
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
+              {timeSlots.map((time) => {
+                const isSelected = selectedTime === time;
+                const hour = parseInt(time.split(":")[0]);
+                const lightingHour = parseInt(facility.lightingStartTime.split(":")[0]);
+                const extraFee =
+                  facility.type === "bicycles"
+                    ? null
+                    : hour >= lightingHour && facility.lightingFee > 0
+                    ? facility.lightingFee
+                    : null;
+
+                return (
+                  <button
+                    key={time}
+                    onClick={() => handleTimeSelect(time)}
+                    className="flex flex-col items-center justify-center p-3 rounded-lg"
+                    style={{
+                      backgroundColor: isSelected ? "#063830" : "white",
+                      color: isSelected ? "white" : "#063830",
+                      border: `2px solid ${isSelected ? "#063830" : "#6CABA8"}`,
+                      height: "70px",
+                    }}
+                  >
+                    <span className="font-semibold">{time}</span>
+
+                    {extraFee && (
+                      <span
+                        className="text-xs font-medium"
+                        style={{ color: isSelected ? "#D8F2ED" : "#6CABA8" }}
+                      >
+                        +{extraFee} MAD
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* EQUIPMENT SELECTION (after time is chosen) */}
+          {showEquipment && selectedTime && (
+            <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+              <h2 className="text-xl font-bold mb-4" style={{ color: "#063830" }}>
+                Equipment
+              </h2>
+
+              {/* Included equipment */}
+              {facility.includedEquipment.length > 0 && (
+                <div className="mb-4">
+                  {facility.includedEquipment.map((name) => (
+                    <div
+                      key={name}
+                      className="flex items-center justify-between p-3 rounded-lg bg-[#D8F2ED] mb-2"
+                    >
+                      <div>
+                        <p className="font-medium text-[#063830]">{name}</p>
+                        <p className="text-xs text-gray-600">Included</p>
+                      </div>
+                      <span className="text-xs font-semibold text-[#063830]">
+                        1x
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Optional / stock-limited equipment */}
+              {facility.availableEquipment.length > 0 && (
+                <div className="space-y-3">
+                  {facility.availableEquipment.map((item) => {
+                    const selectedQty = equipment[item.id] || 0;
+                    const remaining = item.quantity - selectedQty;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center justify-between p-3 border rounded-lg"
+                      >
+                        <div>
+                          <p className="font-medium text-[#063830]">
+                            {item.name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {item.included
+                              ? "Free rental • stock limited"
+                              : "Optional equipment"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Available: {remaining}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => updateEquipment(item.id, -1)}
+                            disabled={selectedQty === 0}
+                            className="p-2 rounded-full border disabled:opacity-40"
+                          >
+                            <MinusIcon className="w-4 h-4" />
+                          </button>
+                          <span className="w-8 text-center font-semibold">
+                            {selectedQty}
+                          </span>
+                          <button
+                            onClick={() => updateEquipment(item.id, 1)}
+                            disabled={selectedQty >= item.quantity}
+                            className="p-2 rounded-full border disabled:opacity-40"
+                          >
+                            <PlusIcon className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* BOOKING SUMMARY */}
+          {selectedTime && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl shadow-lg p-6"
+            >
+              <h2
+                className="text-xl font-bold mb-4"
+                style={{ color: "#063830" }}
+              >
+                Booking Summary
+              </h2>
+
+              <div className="space-y-3 mb-4">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Facility</span>
+                  <span className="font-medium">{facility.name}</span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Date</span>
+                  <span className="font-medium">
+                    {selectedDate.toLocaleDateString()}
+                  </span>
+                </div>
+
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Time</span>
+                  <span className="font-medium">{selectedTime}</span>
+                </div>
+
+                {/* 🛞 Extra options only for bicycles */}
+                {facility.type === "bicycles" && (
+                  <>
+                    {/* Bike type */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Bike Type</span>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setBikeType("normal")}
+                          className="px-3 py-1 rounded-full text-sm font-medium"
+                          style={{
+                            backgroundColor:
+                              bikeType === "normal" ? "#063830" : "#D8F2ED",
+                            color: bikeType === "normal" ? "white" : "#063830",
+                          }}
+                        >
+                          Normal
+                        </button>
+                        <button
+                          onClick={() => setBikeType("pro")}
+                          className="px-3 py-1 rounded-full text-sm font-medium"
+                          style={{
+                            backgroundColor:
+                              bikeType === "pro" ? "#063830" : "#D8F2ED",
+                            color: bikeType === "pro" ? "white" : "#063830",
+                          }}
+                        >
+                          Professional
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Rental plan via modal */}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Rental Duration</span>
+                      <button
+                        onClick={() => setShowPlanModal(true)}
+                        className="px-3 py-1 rounded-lg text-sm font-medium"
+                        style={{ backgroundColor: "#D8F2ED", color: "#063830" }}
+                      >
+                        {rentalPlan
+                          ? (() => {
+                              switch (rentalPlan) {
+                                case "2h":
+                                  return "2 Hours";
+                                case "daily":
+                                  return "Daily";
+                                case "3d":
+                                  return "3 Days";
+                                case "weekly":
+                                  return "Weekly";
+                              }
+                            })()
+                          : "Choose Plan"}
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                <div className="flex justify-between text-lg font-bold border-t pt-3">
+                  <span>Total</span>
+                  <span>{price} MAD</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleBooking}
+                className="w-full py-4 rounded-lg mt-2 text-white"
+                style={{ backgroundColor: "#063830" }}
+              >
+                {price > 0 ? "Send Booking Request" : "Confirm Booking"}
+              </button>
+            </motion.div>
+          )}
+        </>
       )}
 
       {/* RENTAL PLAN MODAL (bicycles only) */}

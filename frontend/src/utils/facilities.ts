@@ -241,41 +241,37 @@ export function generateTimeSlots(facilityId: string, date: Date): string[] {
   return slots;
 }
 
+
 /* --------------------------------------------------
    PRICE CALCULATOR — WITH BICYCLE RULE
+   (equipment is always FREE)
 --------------------------------------------------- */
 
 export function calculatePrice(
   facilityId: string,
   time: string,
-  selectedEquipment: { name: string; quantity: number }[]
+  _selectedEquipment: { name: string; quantity: number }[],
 ): number {
   const facility = facilities.find((f) => f.id === facilityId);
   if (!facility) return 0;
 
-  /* ----------------------------------------------
-     SPECIAL RULE: BICYCLES = 30 MAD PER HOUR
-  ---------------------------------------------- */
-  if (facility.type === "bicycles") {
-    return 30;
+  // 🚲 Bicycles: detailed pricing is handled in FacilityDetailPage
+  if (facility.type === 'bicycles') {
+    return 0;
   }
 
-  const hour = parseInt(time.split(":")[0]);
-  const lightingStart = parseInt(facility.lightingStartTime.split(":")[0]);
+  const hour = parseInt(time.split(':')[0]);
+  const lightingStart = parseInt(facility.lightingStartTime.split(':')[0]);
 
   let price = 0;
 
-  // Lighting fee
+  // 💡 Lighting fee only (courts in the evening)
   if (hour >= lightingStart && facility.lightingFee > 0) {
     price += facility.lightingFee;
   }
 
-  // Optional equipment
-  selectedEquipment.forEach((item) => {
-    if (item.name.toLowerCase().includes("racket")) price += 10 * item.quantity;
-    if (item.name.toLowerCase().includes("cones")) price += 5 * item.quantity;
-    if (item.name.toLowerCase().includes("ball")) price += 5 * item.quantity;
-  });
-
+  // 🆓 Equipment is always free – no extra price added
   return price;
 }
+
+ 
