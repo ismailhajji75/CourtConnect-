@@ -1,53 +1,55 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';   // ⭐ REQUIRED
-import { useAuth } from '../hooks/useAuth';
-import { motion } from 'framer-motion';
-import { LogInIcon, MailIcon, LockIcon } from 'lucide-react';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import { motion } from "framer-motion";
+import { LogInIcon, MailIcon, LockIcon } from "lucide-react";
 
-// ⭐⭐⭐ SUPER ADMIN CREDENTIALS
 const SUPERADMIN = {
   email: "superadmin@courtconnect.com",
-  password: "Q!7zP@92kL#tX4mB"
+  password: "Q!7zP@92kL#tX4mB",
 };
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const navigate = useNavigate();   // ⭐ ADD THIS
+  const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
-    // ⭐⭐⭐ SUPER ADMIN FRONTEND CHECK
+    /* ------------------------------------------------
+       SUPERADMIN LOGIN (hidden, no placeholder hint)
+    ------------------------------------------------- */
     if (email === SUPERADMIN.email && password === SUPERADMIN.password) {
-
-      // ⭐ REDIRECT TO INTERNAL ADMIN DASHBOARD
-      window.location.href = "/admin/dashboard";
+      await login(SUPERADMIN.email, SUPERADMIN.password);
+      navigate("/admin/dashboard");
       return;
     }
 
-    // Normal login flow
+    /* ------------------------------------------------
+       NORMAL USER LOGIN – only AUI emails
+    ------------------------------------------------- */
     const success = await login(email, password);
 
     if (!success) {
-      setError('Invalid AUI email or password. Please use format: f.lastname@aui.ma');
+      setError("Invalid AUI email. Format: f.lastname@aui.ma");
       setLoading(false);
       return;
     }
 
-    navigate("/home");  // normal user redirect
+    navigate("/home");
   };
 
   return (
     <div
       className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundColor: '#D8F2ED' }}
+      style={{ backgroundColor: "#D8F2ED" }}
     >
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -56,7 +58,6 @@ export default function LoginPage() {
         className="w-full max-w-md"
       >
         <div className="bg-white rounded-2xl shadow-xl p-8">
-          
           {/* Logo */}
           <div className="flex justify-center mb-8">
             <img src="/cc.jpg" alt="CourtConnect Logo" className="h-24 w-auto" />
@@ -64,28 +65,22 @@ export default function LoginPage() {
 
           {/* Title */}
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold mb-2" style={{ color: '#063830' }}>
+            <h1 className="text-3xl font-bold mb-2" style={{ color: "#063830" }}>
               Welcome Back
             </h1>
-            <p className="text-gray-600">Sign in to book your favorite facilities</p>
+            <p className="text-gray-600">Sign in to book your facilities</p>
           </div>
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
 
-            {/* Email Input */}
+            {/* Email */}
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium mb-2"
-                style={{ color: '#063830' }}
-              >
-                AUI Email
+              <label className="block text-sm font-medium mb-2" style={{ color: "#063830" }}>
+                Email
               </label>
               <div className="relative">
-                <MailIcon
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                />
+                <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   id="email"
                   type="email"
@@ -93,39 +88,33 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none"
-                  style={{ borderColor: '#6CABA8' }}
+                  style={{ borderColor: "#6CABA8" }}
                   required
                 />
               </div>
             </div>
 
-            {/* Password Input */}
+            {/* Password */}
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium mb-2"
-                style={{ color: '#063830' }}
-              >
+              <label className="block text-sm font-medium mb-2" style={{ color: "#063830" }}>
                 Password
               </label>
               <div className="relative">
-                <LockIcon
-                  className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400"
-                />
+                <LockIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                 <input
                   id="password"
                   type="password"
-                  placeholder="Enter your password"
+                  placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none"
-                  style={{ borderColor: '#6CABA8' }}
+                  style={{ borderColor: "#6CABA8" }}
                   required
                 />
               </div>
             </div>
 
-            {/* Error Message */}
+            {/* Error */}
             {error && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
@@ -136,18 +125,18 @@ export default function LoginPage() {
               </motion.div>
             )}
 
-            {/* Submit Button */}
+            {/* Button */}
             <button
               type="submit"
               disabled={loading}
               className="w-full py-3 rounded-lg text-white font-medium hover:opacity-90 disabled:opacity-50"
-              style={{ backgroundColor: '#063830' }}
+              style={{ backgroundColor: "#063830" }}
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                     className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
                   />
                   Signing in...
@@ -161,9 +150,8 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Help Text */}
           <p className="text-center text-sm text-gray-500 mt-6">
-            Use your AUI Outlook credentials to sign in
+            Use AUI login
           </p>
         </div>
       </motion.div>

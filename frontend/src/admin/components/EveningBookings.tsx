@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState } from 'react'; 
 import { motion } from 'framer-motion';
 import { CheckIcon, XIcon } from 'lucide-react';
 
-// ⭐ Correct admin imports
-import { Booking } from '../types/types';
+// ⭐ Unified booking type
+import { Booking } from '../types';
 import { useNotifications } from '../hooks/useNotifications';
 
 interface EveningBookingsProps {
@@ -20,20 +20,23 @@ export function EveningBookings({
   const { addNotification } = useNotifications();
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // ⭐ Evening = after 5PM
-  const eveningBookings = bookings.filter(
-    b => b.status === 'pending' && parseInt(b.hour.split(':')[0]) >= 17
-  );
+  // ⭐ Evening = after 5PM + pending only
+  const eveningBookings = bookings.filter(b => {
+    const hour = parseInt(b.time.split(':')[0], 10);
+    return b.status === 'pending' && hour >= 17;
+  });
 
   const handleConfirm = (booking: Booking) => {
     setProcessingId(booking.id);
 
     setTimeout(() => {
       onConfirm(booking.id);
+
       addNotification(
-        'booking',
-        `Confirmed booking for ${booking.user} - ${booking.facility} at ${booking.hour}`
+        "booking",
+        `Approved booking: ${booking.userName} → ${booking.facilityName} at ${booking.time}`
       );
+
       setProcessingId(null);
     }, 500);
   };
@@ -43,24 +46,30 @@ export function EveningBookings({
 
     setTimeout(() => {
       onCancel(booking.id);
+
       addNotification(
-        'cancellation',
-        `Cancelled booking for ${booking.user} - ${booking.facility} at ${booking.hour}`
+        "cancellation",
+        `Rejected booking: ${booking.userName} → ${booking.facilityName} at ${booking.time}`
       );
+
       setProcessingId(null);
     }, 500);
   };
 
-  const getFacilityIcon = (facilityType: string) => {
-    return facilityType === 'bicycle' ? '🚴' : '⚽';
+  // Icon logic
+  const getFacilityIcon = (facilityName: string) => {
+    const name = facilityName.toLowerCase();
+    if (name.includes('bicycle')) return '🚴';
+    if (name.includes('tennis')) return '🎾';
+    if (name.includes('padel')) return '🏓';
+    if (name.includes('soccer')) return '⚽';
+    return '🏟️';
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100">
       <div className="p-6 border-b border-gray-100">
-        <h2 className="text-xl font-bold text-[#063830]">
-          Evening Bookings to Review
-        </h2>
+        <h2 className="text-xl font-bold text-[#063830]">Evening Bookings to Review</h2>
         <p className="text-sm text-gray-600 mt-1">
           Pending bookings after 5:00 PM
         </p>
@@ -86,40 +95,50 @@ export function EveningBookings({
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
+                    
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="text-lg">
-                        {getFacilityIcon(booking.facilityType)}
-                      </span>
+                      <span className="text-lg">{getFacilityIcon(booking.facilityName)}</span>
 
                       <h3 className="font-semibold text-[#063830]">
-                        {booking.user}
+                        {booking.userName ?? 'Unknown User'}
                       </h3>
 
                       <span className="text-sm text-gray-500">•</span>
 
                       <span className="text-sm font-medium text-[#6CABA8]">
-                        {booking.facility}
+                        {booking.facilityName}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-4 text-sm text-gray-600">
                       <span>{booking.date}</span>
                       <span>•</span>
-                      <span>{booking.hour}</span>
+                      <span>{booking.time}</span>
                       <span>•</span>
+
                       <span className="font-medium">
-                        {booking.totalFee} MAD
+                        {booking.totalPrice === 0 ? "FREE" : `${booking.totalPrice} MAD`}
                       </span>
 
-                      {booking.includesLights && (
+                      {booking.requiresPayment && (
                         <>
                           <span>•</span>
-                          <span className="text-xs">💡 With lights</span>
+                          <span className="text-xs">💡 Requires Payment</span>
+                        </>
+                      )}
+
+                      {booking.equipment.length > 0 && (
+                        <>
+                          <span>•</span>
+                          <span className="text-xs text-gray-600">
+                            🎒 {booking.equipment.map(e => `${e.name} x${e.quantity}`).join(', ')}
+                          </span>
                         </>
                       )}
                     </div>
                   </div>
 
+                  {/* Buttons */}
                   <div className="flex items-center gap-2">
                     <motion.button
                       onClick={() => handleConfirm(booking)}

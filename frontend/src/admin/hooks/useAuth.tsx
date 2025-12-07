@@ -1,63 +1,58 @@
-import React, {
-  useState,
-  createContext,
-  useContext,
-  ReactNode
-} from 'react';
+// src/hooks/useAuth.tsx
+
+import { createContext, useContext, useState } from "react";
 
 interface User {
   email: string;
-  name: string;
+  role: "admin" | "user";
 }
 
 interface AuthContextType {
+  user: User | null;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  user: User | null;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  const [user, setUser] = useState<User | null>(null);
-
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication – Admin panel has its own login definition
-    const isAUI = /^[a-z]\.[a-z]+@aui\.ma$/i.test(email);
-
-    if (isAUI && password.length > 0) {
-      const name = email.split('@')[0].replace('.', ' ');
-
-      setUser({
-        email,
-        name: name.charAt(0).toUpperCase() + name.slice(1)
-      });
-
+    // 🔐 SUPER ADMIN (ONLY ONE EXISTS)
+    if (
+      email === "superadmin@courtconnect.com" &&
+      password === "Q!7zP@92kL#tX4mB"
+    ) {
+      setUser({ email, role: "admin" });
       setIsAuthenticated(true);
       return true;
     }
 
-    return false;
+    // 👤 NORMAL USER VALIDATION (AUI EMAILS ONLY)
+    const isAUI = /^[a-z]\.[a-z]+@aui\.ma$/i.test(email);
+    if (!isAUI) return false;
+
+    // normal user
+    setUser({ email, role: "user" });
+    setIsAuthenticated(true);
+    return true;
   };
 
   const logout = () => {
-    setIsAuthenticated(false);
     setUser(null);
-
-    // Optional cleanup for Admin role
-    localStorage.removeItem('role');
+    setIsAuthenticated(false);
   };
 
   return (
     <AuthContext.Provider
       value={{
+        user,
         isAuthenticated,
         login,
         logout,
-        user
       }}
     >
       {children}
@@ -66,11 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
-
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-
-  return context;
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
+  return ctx;
 }

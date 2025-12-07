@@ -2,6 +2,7 @@ import { createContext, useContext, useState } from "react";
 
 interface User {
   email: string;
+  role: "admin" | "user";
 }
 
 interface AuthContextType {
@@ -13,17 +14,29 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+const SUPERADMIN = {
+  email: "superadmin@courtconnect.com",
+  password: "Q!7zP@92kL#tX4mB"
+};
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Fake AUI validation
-    const isAUI = /^[a-z]\.[a-z]+@aui\.ma$/i.test(email);
+    
+    // ⭐ SUPERADMIN FIRST
+    if (email === SUPERADMIN.email && password === SUPERADMIN.password) {
+      setUser({ email, role: "admin" });
+      setIsAuthenticated(true);
+      return true;
+    }
 
+    // ⭐ NORMAL USERS (AUI ONLY)
+    const isAUI = /^[a-z]\.[a-z]+@aui\.ma$/i.test(email);
     if (!isAUI) return false;
 
-    setUser({ email });
+    setUser({ email, role: "user" });
     setIsAuthenticated(true);
     return true;
   };
@@ -34,14 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        login,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={{ user, isAuthenticated, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

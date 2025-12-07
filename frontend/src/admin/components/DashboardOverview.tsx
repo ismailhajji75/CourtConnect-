@@ -1,89 +1,89 @@
-import React from 'react';
-import { motion } from 'framer-motion';
+import React from "react";
+import { motion } from "framer-motion";
 import {
-  TrendingUpIcon,
   CalendarIcon,
   ClockIcon,
-  DollarSignIcon
-} from 'lucide-react';
+  DollarSignIcon,
+  TrendingUpIcon,
+} from "lucide-react";
 
-// ⭐ FIX: Correct import path for admin types
-import { Booking } from '../types/types';
+import { Booking } from "../../types";
 
-interface DashboardOverviewProps {
-  bookings: Booking[];
-}
+/**
+ * DASHBOARD OVERVIEW
+ * This file MUST export DashboardOverview or your app will crash.
+ */
+export function DashboardOverview({ bookings }: { bookings: Booking[] }) {
+  const today = new Date().toISOString().split("T")[0];
 
-export function DashboardOverview({ bookings }: DashboardOverviewProps) {
-  // Calculate stats
-  const today = new Date().toISOString().split('T')[0];
+  // Today’s bookings
+  const todaysBookings = bookings.filter((b) => b.date === today).length;
 
-  const todayBookings = bookings.filter(b => b.date === today).length;
-  const pendingRequests = bookings.filter(b => b.status === 'pending').length;
+  // Pending bookings
+  const pending = bookings.filter((b) => b.status === "pending").length;
 
-  const totalRevenue = bookings
-    .filter(b => b.status === 'confirmed')
-    .reduce((sum, b) => sum + b.totalFee, 0);
+  // Revenue
+  const revenue = bookings
+    .filter((b) => b.status === "approved" || b.status === "upcoming")
+    .reduce((sum, b) => sum + b.totalPrice, 0);
 
-  // Find most booked facility
-  const facilityCounts = bookings.reduce((acc, b) => {
-    acc[b.facility] = (acc[b.facility] || 0) + 1;
-    return acc;
-  }, {} as Record<string, number>);
+  // Most booked facility
+  const facilityCount: Record<string, number> = {};
+  bookings.forEach((b) => {
+    facilityCount[b.facilityName] = (facilityCount[b.facilityName] || 0) + 1;
+  });
 
   const mostBooked =
-    Object.entries(facilityCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ||
-    'N/A';
+    Object.entries(facilityCount).sort((a, b) => b[1] - a[1])[0]?.[0] ||
+    "No Data";
 
   const stats = [
     {
-      label: 'Most Booked Facility',
+      label: "Most Booked Facility",
       value: mostBooked,
       icon: TrendingUpIcon,
-      color: 'bg-blue-100 text-blue-600'
+      color: "bg-blue-100 text-blue-600",
     },
     {
       label: "Today's Bookings",
-      value: todayBookings,
+      value: todaysBookings,
       icon: CalendarIcon,
-      color: 'bg-green-100 text-green-600'
+      color: "bg-green-100 text-green-600",
     },
     {
-      label: 'Pending Requests',
-      value: pendingRequests,
+      label: "Pending Requests",
+      value: pending,
       icon: ClockIcon,
-      color: 'bg-orange-100 text-orange-600'
+      color: "bg-orange-100 text-orange-600",
     },
     {
-      label: 'Total Revenue',
-      value: `${totalRevenue} MAD`,
+      label: "Total Revenue",
+      value: `${revenue} MAD`,
       icon: DollarSignIcon,
-      color: 'bg-purple-100 text-purple-600'
-    }
+      color: "bg-purple-100 text-purple-600",
+    },
   ];
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-      {stats.map((stat, index) => {
+      {stats.map((stat, i) => {
         const Icon = stat.icon;
         return (
           <motion.div
             key={stat.label}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="bg-white rounded-xl p-6 shadow-sm border border-gray-100"
+            transition={{ delay: i * 0.1 }}
+            className="bg-white p-6 rounded-xl border shadow-sm"
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className={`p-3 rounded-lg ${stat.color}`}>
-                <Icon className="w-6 h-6" />
-              </div>
+            <div className={`p-3 rounded-lg inline-flex ${stat.color}`}>
+              <Icon className="w-6 h-6" />
             </div>
 
-            <h3 className="text-2xl font-bold text-[#063830] mb-1">
+            <h3 className="text-2xl font-bold text-[#063830] mt-4">
               {stat.value}
             </h3>
-            <p className="text-sm text-gray-600">{stat.label}</p>
+            <p className="text-gray-600 text-sm">{stat.label}</p>
           </motion.div>
         );
       })}

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { BellIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// ⭐ FIX: correct admin hook path
+// ⭐ Correct unified hook import
 import { useNotifications } from '../hooks/useNotifications';
 
 export function NotificationBell() {
@@ -48,6 +48,7 @@ export function NotificationBell() {
 
   return (
     <div className="relative" ref={dropdownRef}>
+      {/* 🔔 Notification Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors"
@@ -65,6 +66,7 @@ export function NotificationBell() {
         )}
       </button>
 
+      {/* 🔽 Dropdown */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -87,7 +89,7 @@ export function NotificationBell() {
               )}
             </div>
 
-            {/* Notifications */}
+            {/* Notifications List */}
             <div className="max-h-96 overflow-y-auto">
               {notifications.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
@@ -106,6 +108,7 @@ export function NotificationBell() {
                     }`}
                   >
                     <div className="flex items-start gap-3">
+                      {/* Dot indicator */}
                       <div
                         className={`w-2 h-2 rounded-full mt-2 flex-shrink-0 ${
                           notification.type === 'booking'
