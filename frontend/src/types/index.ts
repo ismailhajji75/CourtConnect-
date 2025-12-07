@@ -3,68 +3,47 @@
 -------------------------------------------------- */
 
 export type BookingStatus =
-  | "upcoming"     // Free slots → auto confirmed
-  | "pending"      // Payment-required → waiting admin approval
-  | "approved"     // Admin accepted payment
-  | "rejected"     // Admin rejected booking
-  | "cancelled"    // User cancelled
-  | "past";        // Automatically moved after date has passed
+  | "upcoming"     // auto-confirmed free slot
+  | "pending"      // requires payment or admin review
+  | "approved"     // admin approved
+  | "rejected"     // admin rejected
+  | "cancelled"    // user cancelled
+  | "past";        // date passed → auto moved
 
 /* --------------------------------------------------
-   BOOKING MODEL
+   BOOKING MODEL (UNIFIED)
 -------------------------------------------------- */
 
 export interface Booking {
   id: string;
+
+  /* 🧑 USER INFO — Admin needs this */
+  userId?: string;         // optional for now (backend later)
+  userName?: string;       // admin dashboard display
+  userEmail?: string;      // useful later
+
+  /* 🏟 FACILITY INFO — you already have this */
   facilityId: string;
   facilityName: string;
-  date: string;  // YYYY-MM-DD
-  time: string;
-  duration: number; // usually 1 hour
 
+  /* 📅 TIME */
+  date: string;            // YYYY-MM-DD
+  time: string;            // HH:mm
+  duration: number;        // 1 hour default
+
+  /* 🎒 EQUIPMENT SELECTED */
   equipment: {
     name: string;
     quantity: number;
   }[];
 
+  /* 💰 PRICE */
   totalPrice: number;
+  requiresPayment: boolean;
 
-  requiresPayment: boolean;   // TRUE if time slot has lighting fee or premium rules
-  status: BookingStatus;      // pending, upcoming, etc.
-}
+  /* 📌 STATUS */
+  status: BookingStatus;
 
-/* --------------------------------------------------
-   EQUIPMENT + FACILITY TYPES
--------------------------------------------------- */
-
-export interface EquipmentItem {
-  id: string;
-  name: string;
-  quantity: number;
-  included?: boolean; // free
-}
-
-export interface Facility {
-  id: string;
-  name: string;
-  type: string;
-  description: string;
-
-  hours: {
-    weekday: string;
-    weekend: string;
-  };
-
-  lightingFee: number;
-  lightingStartTime: string;
-
-  includedEquipment: string[];
-  availableEquipment: EquipmentItem[];
-
-  notes: string[];
-
-  capacity?: number;
-  bookingRequired: boolean;
-
-  image: string; // FIXED: always image, not imageUrl
+  /* 🕒 METADATA */
+  createdAt?: string;      // ISO date (admin uses for sorting)
 }

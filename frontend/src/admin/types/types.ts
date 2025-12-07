@@ -1,74 +1,117 @@
 /* ==================================================
-   SHARED ADMIN TYPES – FINAL VERSION
-   Used by: Dashboard, BookingsTable, EveningBookings,
-            AvailabilityManager, NotificationBell, Stats
+   SHARED TYPES – UNIFIED BOOKING MODEL (USER + ADMIN)
+   Fully corrected & dashboard-ready
 ================================================== */
 
 /* --------------------------------------------------
-   ENUM-LIKE LITERAL TYPES
+   BOOKING STATUS TYPES
 -------------------------------------------------- */
 
-export type BookingStatus = 'confirmed' | 'pending' | 'cancelled';
-export type FacilityType = 'court' | 'bicycle';
-export type NotificationType = 'booking' | 'cancellation';
+export type BookingStatus =
+  | "upcoming"     // free slot → auto-confirmed
+  | "pending"      // requires payment or admin approval
+  | "approved"     // admin validated payment
+  | "rejected"     // admin refused
+  | "cancelled"    // user cancelled
+  | "past";        // already happened
 
 /* --------------------------------------------------
-   BOOKING (Admin booking objects)
-   Used in tables, pending evening review, stats
+   UNIFIED BOOKING MODEL (MAIN BOOKING OBJECT)
 -------------------------------------------------- */
+
 export interface Booking {
   id: string;
-  user: string;
-  facility: string;            // e.g., "5v5 Court (Proxy Area)"
-  facilityType: FacilityType;  // court | bicycle
 
-  date: string;                // YYYY-MM-DD
-  hour: string;                // HH:mm
+  /* --------------------------
+        USER INFORMATION
+     -------------------------- */
+  userId?: string;
+  userName?: string;
+  userEmail?: string;
 
-  totalFee: number;            // MAD
-  status: BookingStatus;       // confirmed | pending | cancelled
+  /* --------------------------
+       FACILITY INFORMATION
+     -------------------------- */
+  facilityId: string;
+  facilityName: string;
 
-  includesLights: boolean;     // required: true only for evening/lights
+  /* --------------------------
+       DATE & TIME
+     -------------------------- */
+  date: string;        // ALWAYS YYYY-MM-DD
+  time: string;        // ALWAYS HH:mm
+  duration: number;    // hours
+
+  /* --------------------------
+       EQUIPMENT (optional)
+     -------------------------- */
+  equipment: {
+    name: string;
+    quantity: number;
+  }[];
+
+  /* --------------------------
+            PRICING
+     -------------------------- */
+  totalPrice: number;      // used for revenue
+  requiresPayment: boolean;
+
+  /* --------------------------
+            STATUS
+     -------------------------- */
+  status: BookingStatus;
+
+  /* --------------------------
+            METADATA
+     -------------------------- */
+  createdAt?: string;     // ISO timestamp (auto-generated)
 }
 
 /* --------------------------------------------------
-   AVAILABILITY SLOTS (Admin availability manager)
+   AVAILABILITY (ADMIN CONTROL)
 -------------------------------------------------- */
+
 export interface Availability {
   id: string;
 
   facility: string;
-  facilityType: FacilityType;  // court | bicycle
+  facilityType?: string;
 
-  date: string;                // YYYY-MM-DD
-  startTime: string;           // HH:mm
-  endTime: string;             // HH:mm
+  date: string;           // YYYY-MM-DD
+  startTime: string;      // HH:mm
+  endTime: string;        // HH:mm
 
-  price: number;               // MAD (0 for daytime courts)
-
-  // Whether this slot allows evening lighting:
+  price: number;          // MAD per hour
   lightsAvailable: boolean;
 }
 
 /* --------------------------------------------------
-   NOTIFICATION SYSTEM (Bell dropdown)
+   NOTIFICATION SYSTEM (Admin Bell)
 -------------------------------------------------- */
+
+export type NotificationType =
+  | "booking"       // new booking created
+  | "cancellation"; // booking cancelled
+
 export interface Notification {
   id: string;
-  type: NotificationType;      // booking | cancellation
+
+  type: NotificationType;
   message: string;
 
-  timestamp: Date;             // actual Date object
+  timestamp: string;   // 🔥 FIXED: use string for localStorage compatibility
+                       // Date objects cannot be stored safely → breaks parsing
+
   read: boolean;
 }
 
 /* --------------------------------------------------
-   DASHBOARD STATS SUMMARY
-   Used in DashboardOverview top cards
+   DASHBOARD STATISTICS (Admin Overview)
 -------------------------------------------------- */
+
 export interface DashboardStats {
-  mostBooked: string;          // Facility name
-  todayBookings: number;       // count
-  pendingRequests: number;     // count
-  totalRevenue: number;        // MAD
+  mostBooked: string;      // facility name
+  todayBookings: number;   // count
+  pendingRequests: number; // count
+  totalRevenue: number;    // MAD
 }

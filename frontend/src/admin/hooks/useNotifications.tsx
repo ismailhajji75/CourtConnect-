@@ -1,82 +1,76 @@
-import React, {
-  useEffect,
-  useState,
-  createContext,
-  useContext,
-  ReactNode
-} from 'react';
+// src/admin/hooks/useNotifications.tsx
 
-// ⭐ FIX: correct types import path for admin folder
-import { Notification } from '../types/types';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import type { Notification, NotificationType } from "../types/types";
 
 interface NotificationContextType {
   notifications: Notification[];
   unreadCount: number;
-  addNotification: (type: 'booking' | 'cancellation', message: string) => void;
+  addNotification: (type: NotificationType, message: string) => void;
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
 }
 
-const NotificationContext = createContext<
-  NotificationContextType | undefined
->(undefined);
+const NotificationContext = createContext<NotificationContextType | null>(null);
 
-export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notifications, setNotifications] = useState<Notification[]>([
-    {
-      id: '1',
-      type: 'booking',
-      message: 'New booking from John Doe for Court A at 18:00',
-      timestamp: new Date(Date.now() - 1000 * 60 * 5),
-      read: false
-    },
-    {
-      id: '2',
-      type: 'cancellation',
-      message: 'Booking cancelled by Sarah Smith for Court B at 19:00',
-      timestamp: new Date(Date.now() - 1000 * 60 * 15),
-      read: false
+const STORAGE_KEY = "courtconnect-notifications";
+
+export function NotificationProvider({ children }: { children: React.ReactNode }) {
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  /* ---------------------------------------------------
+       LOAD FROM LOCAL STORAGE ON FIRST RENDER
+  --------------------------------------------------- */
+  useEffect(() => {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      try {
+        setNotifications(JSON.parse(stored));
+      } catch {
+        console.error("Failed to parse notifications");
+      }
     }
-  ]);
+  }, []);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  /* ---------------------------------------------------
+       SAVE TO LOCAL STORAGE WHENEVER IT CHANGES
+  --------------------------------------------------- */
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+  }, [notifications]);
 
-  const addNotification = (
-    type: 'booking' | 'cancellation',
-    message: string
-  ) => {
+  /* ---------------------------------------------------
+       ADD A NEW NOTIFICATION
+  --------------------------------------------------- */
+  const addNotification = (type: NotificationType, message: string) => {
     const newNotification: Notification = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),          // safer unique ID
       type,
       message,
-      timestamp: new Date(),
-      read: false
+      timestamp: new Date().toISOString(), // 🔥 FIXED: string ISO format
+      read: false,
     };
 
-    setNotifications(prev => [newNotification, ...prev]);
+    setNotifications((prev) => [newNotification, ...prev]);
   };
 
+  /* ---------------------------------------------------
+       MARK ONE AS READ
+  --------------------------------------------------- */
   const markAsRead = (id: string) => {
-    setNotifications(prev =>
-      prev.map(n =>
-        n.id === id
-          ? {
-              ...n,
-              read: true
-            }
-          : n
-      )
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
   };
 
+  /* ---------------------------------------------------
+       MARK ALL AS READ
+  --------------------------------------------------- */
   const markAllAsRead = () => {
-    setNotifications(prev =>
-      prev.map(n => ({
-        ...n,
-        read: true
-      }))
-    );
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
     <NotificationContext.Provider
@@ -85,7 +79,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         unreadCount,
         addNotification,
         markAsRead,
-        markAllAsRead
+        markAllAsRead,
       }}
     >
       {children}
@@ -94,13 +88,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 }
 
 export function useNotifications() {
-  const context = useContext(NotificationContext);
-
-  if (!context) {
-    throw new Error(
-      'useNotifications must be used within NotificationProvider'
-    );
+  const ctx = useContext(NotificationContext);
+  if (!ctx) {
+    throw new Error("useNotifications must be used inside <NotificationProvider>");
   }
-
-  return context;
+  return ctx;
 }

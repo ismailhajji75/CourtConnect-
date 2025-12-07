@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PlusIcon, TrashIcon } from 'lucide-react';
 
-// ⭐ IMPORTANT: Update to use admin types path
-import { Availability } from '../types/types';
+// ⭐ UPDATED → Import from unified shared types
+import { Availability } from '../types';
 
 interface AvailabilityManagerProps {
   availabilities: Availability[];
@@ -15,39 +15,39 @@ const FACILITIES = [
   {
     value: '5v5 Court (Proxy Area)',
     type: 'court' as const,
-    lights: true
+    lights: true,
   },
   {
     value: 'New Soccer Field (Half-Field)',
     type: 'court' as const,
-    lights: true
+    lights: true,
   },
   {
     value: 'Tennis Courts',
     type: 'court' as const,
-    lights: true
+    lights: true,
   },
   {
     value: 'Padel Court',
     type: 'court' as const,
-    lights: true
+    lights: true,
   },
   {
     value: 'Basketball Mini-Court (Gym Side)',
     type: 'court' as const,
-    lights: false
+    lights: false,
   },
   {
     value: 'Bicycles',
     type: 'bicycle' as const,
-    lights: false
-  }
+    lights: false,
+  },
 ];
 
 export function AvailabilityManager({
   availabilities,
   onAdd,
-  onDelete
+  onDelete,
 }: AvailabilityManagerProps) {
   const [showForm, setShowForm] = useState(false);
 
@@ -58,18 +58,18 @@ export function AvailabilityManager({
     startTime: '',
     endTime: '',
     price: '',
-    lightsAvailable: false
+    lightsAvailable: false,
   });
 
   const handleFacilityChange = (facilityValue: string) => {
-    const facility = FACILITIES.find(f => f.value === facilityValue);
+    const facility = FACILITIES.find((f) => f.value === facilityValue);
     if (facility) {
       setFormData({
         ...formData,
         facility: facilityValue,
         facilityType: facility.type,
         lightsAvailable: facility.lights,
-        price: facility.type === 'bicycle' ? '10' : ''
+        price: facility.type === 'bicycle' ? '10' : '',
       });
     }
   };
@@ -102,7 +102,7 @@ export function AvailabilityManager({
       price: calculatedPrice,
       lightsAvailable:
         formData.lightsAvailable &&
-        parseInt(formData.startTime.split(':')[0]) >= 18
+        parseInt(formData.startTime.split(':')[0]) >= 18,
     });
 
     setFormData({
@@ -112,7 +112,7 @@ export function AvailabilityManager({
       startTime: '',
       endTime: '',
       price: '',
-      lightsAvailable: false
+      lightsAvailable: false,
     });
 
     setShowForm(false);
@@ -128,8 +128,7 @@ export function AvailabilityManager({
       return (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <p className="text-sm text-blue-800">
-            🚴 Bicycles: <strong>10 MAD/hour</strong> (always requires
-            confirmation)
+            🚴 Bicycles: <strong>10 MAD/hour</strong> (always requires confirmation)
           </p>
         </div>
       );
@@ -139,8 +138,7 @@ export function AvailabilityManager({
       return (
         <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
           <p className="text-sm text-orange-800">
-            💡 Evening booking (after 6pm):{' '}
-            <strong>{price} MAD</strong> (lights fee)
+            💡 Evening booking (after 6pm): <strong>{price} MAD</strong> (lights fee)
           </p>
         </div>
       );
@@ -226,14 +224,14 @@ export function AvailabilityManager({
 
                   <select
                     value={formData.facility}
-                    onChange={e => handleFacilityChange(e.target.value)}
+                    onChange={(e) => handleFacilityChange(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-[#6CABA8] focus:outline-none"
                     required
                   >
                     <option value="">Select facility</option>
 
                     <optgroup label="Courts">
-                      {FACILITIES.filter(f => f.type === 'court').map(f => (
+                      {FACILITIES.filter((f) => f.type === 'court').map((f) => (
                         <option key={f.value} value={f.value}>
                           {f.value}
                         </option>
@@ -241,7 +239,7 @@ export function AvailabilityManager({
                     </optgroup>
 
                     <optgroup label="Equipment">
-                      {FACILITIES.filter(f => f.type === 'bicycle').map(f => (
+                      {FACILITIES.filter((f) => f.type === 'bicycle').map((f) => (
                         <option key={f.value} value={f.value}>
                           {f.value}
                         </option>
@@ -258,9 +256,7 @@ export function AvailabilityManager({
                   <input
                     type="date"
                     value={formData.date}
-                    onChange={e =>
-                      setFormData({ ...formData, date: e.target.value })
-                    }
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-[#6CABA8] focus:outline-none"
                     required
                   />
@@ -274,7 +270,7 @@ export function AvailabilityManager({
                   <input
                     type="time"
                     value={formData.startTime}
-                    onChange={e =>
+                    onChange={(e) =>
                       setFormData({ ...formData, startTime: e.target.value })
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-[#6CABA8] focus:outline-none"
@@ -290,7 +286,7 @@ export function AvailabilityManager({
                   <input
                     type="time"
                     value={formData.endTime}
-                    onChange={e =>
+                    onChange={(e) =>
                       setFormData({ ...formData, endTime: e.target.value })
                     }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-[#6CABA8] focus:outline-none"
@@ -327,9 +323,7 @@ export function AvailabilityManager({
       {/* Availability List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="p-6">
-          <h3 className="font-semibold text-[#063830] mb-4">
-            Current Availability
-          </h3>
+          <h3 className="font-semibold text-[#063830] mb-4">Current Availability</h3>
 
           <div className="space-y-3">
             {availabilities.length === 0 ? (
@@ -351,9 +345,11 @@ export function AvailabilityManager({
                         {availability.facility}
                       </span>
 
-                      <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
-                        {availability.facilityType}
-                      </span>
+                      {availability.facilityType && (
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded-full">
+                          {availability.facilityType}
+                        </span>
+                      )}
 
                       {availability.lightsAvailable && (
                         <span className="text-xs text-orange-600">💡 Evening</span>

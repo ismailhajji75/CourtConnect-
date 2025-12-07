@@ -7,9 +7,7 @@ import {
   LogOutIcon
 } from 'lucide-react';
 
-// ⭐ Correct admin auth hook import
-import { useAuth } from '../hooks/useAuth';
-
+import { useAuth } from '../../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 
 interface SidebarProps {
@@ -18,38 +16,36 @@ interface SidebarProps {
 }
 
 const tabs = [
-  {
-    id: 'overview',
-    label: 'Dashboard',
-    icon: LayoutDashboardIcon
-  },
-  {
-    id: 'evening',
-    label: 'Evening Bookings',
-    icon: ClockIcon
-  },
-  {
-    id: 'availability',
-    label: 'Manage Availability',
-    icon: CalendarIcon
-  }
+  { id: 'overview', label: 'Dashboard', icon: LayoutDashboardIcon },
+  { id: 'evening', label: 'Evening Bookings', icon: ClockIcon },
+  { id: 'availability', label: 'Manage Availability', icon: CalendarIcon }
 ];
+
+// Format email to readable name
+const formatUserName = (email?: string) => {
+  if (!email) return 'Admin';
+
+  const [first, last] = email.split('@')[0].split('.');
+  if (!first || !last) return email;
+
+  return `${first.charAt(0).toUpperCase()}. ${last.charAt(0).toUpperCase() + last.slice(1)}`;
+};
 
 export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
 
+  // 🚫 Prevent non-admins from ever seeing the sidebar
+  if (user?.role !== "admin") return null;
+
   const handleLogout = () => {
     logout();
-
-    // ⭐ Optional: remove admin role
-    localStorage.removeItem('role');
-
-    navigate('/');
+    navigate('/login');
   };
 
   return (
     <div className="w-64 bg-white border-r border-gray-200 flex flex-col h-full">
+      
       {/* Logo */}
       <div className="p-6 border-b border-gray-200">
         <img src="/cc.jpg" alt="CourtConnect" className="w-full h-auto" />
@@ -66,11 +62,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors relative
-                ${
-                  isActive
-                    ? 'text-white'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
+                ${isActive ? 'text-white' : 'text-gray-700 hover:bg-gray-100'}`}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
             >
@@ -78,11 +70,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
                 <motion.div
                   layoutId="activeTab"
                   className="absolute inset-0 bg-[#6CABA8] rounded-lg"
-                  transition={{
-                    type: 'spring',
-                    bounce: 0.2,
-                    duration: 0.6
-                  }}
+                  transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                 />
               )}
 
@@ -97,7 +85,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
       <div className="p-4 border-t border-gray-200">
         <div className="mb-3 px-4">
           <p className="text-sm font-medium text-[#063830]">
-            {user?.name}
+            {formatUserName(user?.email)}
           </p>
           <p className="text-xs text-gray-500">{user?.email}</p>
         </div>
