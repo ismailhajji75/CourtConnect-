@@ -4,11 +4,6 @@ import { useAuth } from "../hooks/useAuth";
 import { motion } from "framer-motion";
 import { LogInIcon, MailIcon, LockIcon } from "lucide-react";
 
-const SUPERADMIN = {
-  email: "superadmin@courtconnect.com",
-  password: "Q!7zP@92kL#tX4mB",
-};
-
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -23,27 +18,20 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
-    /* ------------------------------------------------
-       SUPERADMIN LOGIN (hidden, no placeholder hint)
-    ------------------------------------------------- */
-    if (email === SUPERADMIN.email && password === SUPERADMIN.password) {
-      await login(SUPERADMIN.email, SUPERADMIN.password);
-      navigate("/admin/dashboard");
-      return;
-    }
+    const loggedInUser = await login(email, password);
 
-    /* ------------------------------------------------
-       NORMAL USER LOGIN – only AUI emails
-    ------------------------------------------------- */
-    const success = await login(email, password);
-
-    if (!success) {
-      setError("Invalid AUI email. Format: f.lastname@aui.ma");
+    if (!loggedInUser) {
+      setError("Invalid credentials. Use your AUI email and password.");
       setLoading(false);
       return;
     }
 
-    navigate("/home");
+    // admins/superadmins land on dashboard, others to home
+    if (loggedInUser.role === "ADMIN" || loggedInUser.role === "SUPERADMIN") {
+      navigate("/admin/dashboard");
+    } else {
+      navigate("/home");
+    }
   };
 
   return (

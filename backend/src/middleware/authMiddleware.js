@@ -20,6 +20,11 @@ export const protect = (req, res, next) => {
       return res.status(401).json({ error: "User not found" });
     }
 
+    // extra guard: ensure token email matches stored user email
+    if (decoded.email && decoded.email.toLowerCase() !== user.email.toLowerCase()) {
+      return res.status(401).json({ error: "Token does not match user" });
+    }
+
     req.user = user; // includes balance, role, email, etc.
     next();
   } catch (err) {

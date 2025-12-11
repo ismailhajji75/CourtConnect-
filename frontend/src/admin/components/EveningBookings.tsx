@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { CheckIcon, XIcon } from 'lucide-react';
 
 // ⭐ Unified booking type
-import { Booking } from '../types';
+import { Booking } from '../types/types';
 import { useNotifications } from '../hooks/useNotifications';
 
 interface EveningBookingsProps {

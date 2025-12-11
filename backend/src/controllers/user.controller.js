@@ -32,11 +32,14 @@ export const register = (req, res) => {
 
   const hashed = bcrypt.hashSync(password, 10);
 
+  const normalizedRole =
+    role === "ADMIN" || role === "SUPERADMIN" ? role : "STUDENT";
+
   const newUser = {
     id: getNextUserId(),
     username,
     email: email.toLowerCase(),
-    role: role === "ADMIN" ? "ADMIN" : "STUDENT",
+    role: normalizedRole,
     password: hashed,
     balance: 0, // default CashWallet balance
   };
@@ -47,6 +50,7 @@ export const register = (req, res) => {
     id: newUser.id,
     username: newUser.username,
     role: newUser.role,
+    email: newUser.email,
   });
 
   res.status(201).json({
@@ -85,6 +89,7 @@ export const login = (req, res) => {
     id: user.id,
     username: user.username,
     role: user.role,
+    email: user.email,
   });
 
   res.json({

@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { facilities, generateTimeSlots, calculatePrice } from "../utils/facilities";
 import { useBookings } from "../hooks/useBookings";
+import { useAuth } from "../hooks/useAuth";
+import { useAvailability } from "../hooks/useAvailability";
 import { toast } from "sonner";
 
 import {
@@ -16,9 +18,34 @@ import {
 export default function FacilityDetailPage() {
   const { facilityId } = useParams();
   const navigate = useNavigate();
-  const { addBooking } = useBookings();
+  const { addBooking, bookings } = useBookings();
+  const { user } = useAuth();
+  const { availabilities } = useAvailability();
 
   const facility = facilities.find((f) => f.id === facilityId);
+
+  // Tennis: allow switching between court 1 and court 2 on the same page
+  const tennisCourts = useMemo(
+    () => facilities.filter((f) => f.type === "tennis"),
+    []
+  );
+  const [selectedCourtId, setSelectedCourtId] = useState<string>(
+    facility?.type === "tennis" ? facility.id : facility?.id ?? ""
+  );
+  const currentFacility =
+    facility?.type === "tennis"
+      ? tennisCourts.find((court) => court.id === selectedCourtId) ?? facility
+      : facility;
+  const displayName =
+    facility?.type === "tennis" ? "Tennis Court" : currentFacility?.name;
+  const selectedCourtLabel =
+    currentFacility?.type === "tennis"
+      ? currentFacility.id?.endsWith("-1")
+        ? "Court 1"
+        : currentFacility.id?.endsWith("-2")
+        ? "Court 2"
+        : currentFacility.name
+      : currentFacility?.name;
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTime, setSelectedTime] = useState("");
@@ -30,19 +57,63 @@ export default function FacilityDetailPage() {
   const [rentalPlan, setRentalPlan] =
     useState<"2h" | "daily" | "3d" | "weekly" | null>(null);
   const [showPlanModal, setShowPlanModal] = useState(false);
+  const [takenSlots, setTakenSlots] = useState<{ startTime: string; endTime: string }[]>([]);
 
-  if (!facility) {
+  if (!facility || !currentFacility) {
     return <div className="p-8 text-center text-red-500">Facility not found.</div>;
   }
 
-  const timeSlots = generateTimeSlots(facility.id, selectedDate);
+  // Expand availability windows into 1-hour start times (inclusive start, exclusive end)
+  const expandAvailabilitySlots = () => {
+    const slots: string[] = [];
+    const day = selectedDate.toLocaleDateString("en-CA");
+    const matches = availabilities.filter(
+      (a) =>
+        ((a.facilityId && a.facilityId === currentFacility.id) ||
+          a.facility === currentFacility.id ||
+          a.facility === currentFacility.name ||
+          a.facilityLabel === currentFacility.name) &&
+        a.date === day
+    );
+
+    matches.forEach((a) => {
+      const [sh, sm] = a.startTime.split(":").map(Number);
+      const [eh, em] = a.endTime.split(":").map(Number);
+      const startMinutes = sh * 60 + (sm || 0);
+      const endMinutes = eh * 60 + (em || 0);
+
+      for (let m = startMinutes; m + 60 <= endMinutes; m += 60) {
+        const h = Math.floor(m / 60)
+          .toString()
+          .padStart(2, "0");
+        const mm = (m % 60).toString().padStart(2, "0");
+        slots.push(`${h}:${mm}`);
+      }
+    });
+
+    return slots;
+  };
+
+  const availabilitySlots = expandAvailabilitySlots();
+
+  // Combine default schedule with admin-provided slots (per facility/date), de-duplicated and time-sorted
+  const baseSlots = generateTimeSlots(currentFacility.id, selectedDate);
+  const toMinutes = (t: string) => {
+    const [h, m] = t.split(":").map(Number);
+    return h * 60 + (m || 0);
+  };
+  const timeSlots = Array.from(new Set([...baseSlots, ...availabilitySlots])).sort(
+    (a, b) => toMinutes(a) - toMinutes(b)
+  );
 
   // Base price (lights) for non-bicycles
-  const basePrice = selectedTime ? calculatePrice(facility.id, selectedTime, []) : 0;
+  const basePrice = selectedTime
+    ? calculatePrice(currentFacility.id, selectedTime, [])
+    : 0;
 
   // 🛞 Special pricing for bicycles based on type + rental plan
   const getBicyclePrice = () => {
-    if (facility.type !== "bicycles" || !rentalPlan) return 0;
+    if (currentFacility.type !== "bicycles" || !rentalPlan) return 0;
 
     if (bikeType === "normal") {
       switch (rentalPlan) {
@@ -71,7 +142,25 @@ export default function FacilityDetailPage() {
   };
 
   const bicyclePrice = getBicyclePrice();
-  const price = facility.type === "bicycles" ? bicyclePrice : basePrice;
+  const price = currentFacility.type === "bicycles" ? bicyclePrice : basePrice;
+
+  // Morocco current time helper
+  const moroccoNow = () =>
+    new Date(new Date().toLocaleString("en-US", { timeZone: "Africa/Casablanca" }));
+
+  const isSlotInPast = (slot: string) => {
+    const now = moroccoNow();
+    const slotDate = new Date(selectedDate);
+    const [h, m] = slot.split(":").map(Number);
+    slotDate.setHours(h, m ?? 0, 0, 0);
+
+    const sameDay =
+      slotDate.getFullYear() === now.getFullYear() &&
+      slotDate.getMonth() === now.getMonth() &&
+      slotDate.getDate() === now.getDate();
+
+    return sameDay && slotDate <= now;
+  };
 
   const handleTimeSelect = (time: string) => {
     setSelectedTime(time);
@@ -79,7 +168,7 @@ export default function FacilityDetailPage() {
   };
 
   const updateEquipment = (itemId: string, delta: number) => {
-    const item = facility.availableEquipment.find((e) => e.id === itemId);
+    const item = currentFacility.availableEquipment.find((e) => e.id === itemId);
     if (!item) return;
 
     const current = equipment[itemId] || 0;
@@ -90,11 +179,11 @@ export default function FacilityDetailPage() {
   // -------------------------
   // BOOKING LOGIC
   // -------------------------
-  const handleBooking = () => {
+  const handleBooking = async () => {
     if (!selectedTime) return;
 
     // Extra guard for bicycles: must select rental plan
-    if (facility.type === "bicycles" && !rentalPlan) {
+    if (currentFacility.type === "bicycles" && !rentalPlan) {
       toast.error("Please choose a rental duration for the bicycle.");
       return;
     }
@@ -103,38 +192,89 @@ export default function FacilityDetailPage() {
     const selectedEquipment = Object.entries(equipment)
       .filter(([_, qty]) => qty > 0)
       .map(([id, qty]) => {
-        const item = facility.availableEquipment.find((e) => e.id === id);
+        const item = currentFacility.availableEquipment.find((e) => e.id === id);
         return { name: item?.name || "", quantity: qty };
       });
 
     // Add included equipment info (1x each)
-    facility.includedEquipment.forEach((name) => {
+    currentFacility.includedEquipment.forEach((name) => {
       selectedEquipment.push({ name, quantity: 1 });
     });
 
     const requiresPayment = price > 0;
 
-    addBooking({
-      facilityId: facility.id,
-      facilityName: facility.name,
-      date: selectedDate.toISOString().split("T")[0],
+    const created = await addBooking({
+      facilityId: currentFacility.id,
+      facilityName: currentFacility.name,
+      date: selectedDate.toLocaleDateString("en-CA"),
       time: selectedTime,
       duration: 1,
       equipment: selectedEquipment,
       totalPrice: price,
       requiresPayment,
+      bikeType: currentFacility.type === "bicycles" ? bikeType : undefined,
+      rentalPlan: currentFacility.type === "bicycles" ? rentalPlan ?? undefined : undefined,
     });
+
+    if (!created) {
+      toast.error("Booking failed. Please try again or pick another slot.");
+      return;
+    }
 
     toast.success(
       requiresPayment
         ? "Booking request sent — waiting admin approval."
         : "Booking confirmed!",
       {
-        description: `${facility.name} • ${selectedDate.toLocaleDateString()} at ${selectedTime}`,
+        description: `${currentFacility.name} • ${selectedDate.toLocaleDateString()} at ${selectedTime}`,
       }
     );
 
     navigate("/bookings");
+  };
+
+  // Fetch availability for selected date so users can't pick taken slots
+  React.useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    const fetchAvailability = async () => {
+      if (!user?.token || !currentFacility?.id) return;
+      const API_BASE = (import.meta as any).env?.VITE_API_URL || "/api";
+      try {
+        const res = await fetch(
+          `${API_BASE}/bookings/availability/${currentFacility.id}?date=${selectedDate.toLocaleDateString("en-CA")}`,
+          {
+            headers: {
+              Authorization: `Bearer ${user.token}`,
+            },
+          }
+        );
+        if (!res.ok) return;
+        const data = await res.json();
+        setTakenSlots(data.slots || []);
+      } catch (err) {
+        console.error("Failed to load availability", err);
+      }
+    };
+    fetchAvailability();
+    interval = setInterval(fetchAvailability, 30_000);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [currentFacility?.id, selectedDate, user?.token, bookings]);
+
+  const isSlotTaken = (slot: string) => {
+    // slot is start time (HH:mm) for a 1-hour window
+    const toMinutes = (t: string) => {
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + m;
+    };
+    const s = toMinutes(slot);
+    const e = s + 60;
+    return takenSlots.some((b) => {
+      const bs = toMinutes(b.startTime);
+      const be = toMinutes(b.endTime);
+      return s < be && e > bs;
+    });
   };
 
   const dates = Array.from({ length: 7 }, (_, i) => {
@@ -161,16 +301,47 @@ export default function FacilityDetailPage() {
         className="mb-8"
       >
         <h1 className="text-3xl font-bold mb-2" style={{ color: "#063830" }}>
-          {facility.name}
+          {displayName}
         </h1>
-        <p className="text-gray-600">{facility.description}</p>
+        <p className="text-gray-600">{currentFacility.description}</p>
+
+        {/* Tennis courts: toggle Court 1 / Court 2 and show availability per court */}
+        {currentFacility.type === "tennis" && (
+          <div className="mt-4 flex flex-wrap gap-3">
+            {tennisCourts.map((court) => (
+              <button
+                key={court.id}
+                onClick={() => {
+                  setSelectedCourtId(court.id);
+                  setSelectedTime("");
+                  setShowEquipment(false);
+                  setTakenSlots([]);
+                }}
+                className="px-4 py-2 rounded-lg border font-medium"
+                style={{
+                  backgroundColor:
+                    court.id === selectedCourtId ? "#063830" : "white",
+                  color: court.id === selectedCourtId ? "white" : "#063830",
+                  borderColor:
+                    court.id === selectedCourtId ? "#063830" : "#6CABA8",
+                }}
+              >
+                {court.id.endsWith("-1")
+                  ? "Court 1"
+                  : court.id.endsWith("-2")
+                  ? "Court 2"
+                  : court.name}
+              </button>
+            ))}
+          </div>
+        )}
       </motion.div>
 
       {/* IMAGE */}
-      {facility.image && (
+      {currentFacility.image && (
         <img
-          src={facility.image}
-          alt={facility.name}
+          src={currentFacility.image}
+          alt={displayName || currentFacility.name}
           className="w-full h-64 object-cover rounded-xl shadow-md mb-6"
         />
       )}
@@ -180,7 +351,7 @@ export default function FacilityDetailPage() {
           - bookingRequired = true   → normal booking flow
       */}
 
-      {!facility.bookingRequired ? (
+      {!currentFacility.bookingRequired ? (
         /* ---------------- WALK-IN ONLY LAYOUT (Basketball) ---------------- */
         <div className="bg-white rounded-2xl shadow-lg p-6">
           <div className="grid md:grid-cols-2 gap-6">
@@ -191,9 +362,9 @@ export default function FacilityDetailPage() {
                   Operating Hours
                 </h2>
                 <p className="text-sm text-gray-700">
-                  Mon–Fri: {facility.hours.weekday}
+                  Mon–Fri: {currentFacility.hours.weekday}
                   <br />
-                  Sat–Sun: {facility.hours.weekend}
+                  Sat–Sun: {currentFacility.hours.weekend}
                 </p>
               </div>
 
@@ -201,7 +372,7 @@ export default function FacilityDetailPage() {
                 <h2 className="text-lg font-semibold text-[#063830] mb-2">
                   Equipment
                 </h2>
-                {facility.type === "basketball" ? (
+                {currentFacility.type === "basketball" ? (
                   <p className="text-sm text-gray-700">
                     Bring your own equipment.
                     <br />
@@ -219,7 +390,7 @@ export default function FacilityDetailPage() {
                   Important Notes
                 </h2>
                 <ul className="list-disc list-inside text-sm text-gray-700">
-                  {facility.notes.map((note) => (
+                  {currentFacility.notes.map((note) => (
                     <li key={note}>{note}</li>
                   ))}
                 </ul>
@@ -238,9 +409,9 @@ export default function FacilityDetailPage() {
                   Free equipment rental available on-site.
                 </p>
               </div>
-              {facility.capacity && (
+              {currentFacility.capacity && (
                 <p className="text-sm text-gray-600 text-center">
-                  Capacity: First-come, first-served (approx. {facility.capacity} people)
+                  Capacity: First-come, first-served (approx. {currentFacility.capacity} people)
                 </p>
               )}
             </div>
@@ -289,33 +460,55 @@ export default function FacilityDetailPage() {
               <h2 className="text-xl font-bold" style={{ color: "#063830" }}>
                 Select Time
               </h2>
+              {currentFacility.type === "tennis" && (
+                <span className="text-xs text-gray-500">
+                  Showing {selectedCourtLabel}
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2">
               {timeSlots.map((time) => {
                 const isSelected = selectedTime === time;
+                const taken = isSlotTaken(time);
+                const past = isSlotInPast(time);
                 const hour = parseInt(time.split(":")[0]);
-                const lightingHour = parseInt(facility.lightingStartTime.split(":")[0]);
+                const lightingHour = parseInt(currentFacility.lightingStartTime.split(":")[0]);
                 const extraFee =
-                  facility.type === "bicycles"
+                  currentFacility.type === "bicycles"
                     ? null
-                    : hour >= lightingHour && facility.lightingFee > 0
-                    ? facility.lightingFee
+                    : hour >= lightingHour && currentFacility.lightingFee > 0
+                    ? currentFacility.lightingFee
                     : null;
 
                 return (
                   <button
                     key={time}
                     onClick={() => handleTimeSelect(time)}
+                    disabled={taken || past}
                     className="flex flex-col items-center justify-center p-3 rounded-lg"
                     style={{
-                      backgroundColor: isSelected ? "#063830" : "white",
-                      color: isSelected ? "white" : "#063830",
-                      border: `2px solid ${isSelected ? "#063830" : "#6CABA8"}`,
+                      backgroundColor: taken
+                        ? "#F3F4F6"
+                        : past
+                        ? "#F3F4F6"
+                        : isSelected
+                        ? "#063830"
+                        : "white",
+                      color:
+                        taken || past ? "#9CA3AF" : isSelected ? "white" : "#063830",
+                      border: `2px solid ${
+                        taken || past ? "#E5E7EB" : isSelected ? "#063830" : "#6CABA8"
+                      }`,
                       height: "70px",
                     }}
                   >
                     <span className="font-semibold">{time}</span>
+                    {(taken || past) && (
+                      <span className="text-xs text-red-500 font-medium">
+                        {taken ? "Booked" : "Past"}
+                      </span>
+                    )}
 
                     {extraFee && (
                       <span
@@ -339,9 +532,9 @@ export default function FacilityDetailPage() {
               </h2>
 
               {/* Included equipment */}
-              {facility.includedEquipment.length > 0 && (
+              {currentFacility.includedEquipment.length > 0 && (
                 <div className="mb-4">
-                  {facility.includedEquipment.map((name) => (
+                  {currentFacility.includedEquipment.map((name) => (
                     <div
                       key={name}
                       className="flex items-center justify-between p-3 rounded-lg bg-[#D8F2ED] mb-2"
@@ -359,9 +552,9 @@ export default function FacilityDetailPage() {
               )}
 
               {/* Optional / stock-limited equipment */}
-              {facility.availableEquipment.length > 0 && (
+              {currentFacility.availableEquipment.length > 0 && (
                 <div className="space-y-3">
-                  {facility.availableEquipment.map((item) => {
+                  {currentFacility.availableEquipment.map((item) => {
                     const selectedQty = equipment[item.id] || 0;
                     const remaining = item.quantity - selectedQty;
 
@@ -428,7 +621,11 @@ export default function FacilityDetailPage() {
               <div className="space-y-3 mb-4">
                 <div className="flex justify-between">
                   <span className="text-gray-600">Facility</span>
-                  <span className="font-medium">{facility.name}</span>
+                  <span className="font-medium">
+                    {currentFacility.type === "tennis"
+                      ? `${displayName} – ${selectedCourtLabel}`
+                      : displayName}
+                  </span>
                 </div>
 
                 <div className="flex justify-between">
@@ -444,7 +641,7 @@ export default function FacilityDetailPage() {
                 </div>
 
                 {/* 🛞 Extra options only for bicycles */}
-                {facility.type === "bicycles" && (
+                {currentFacility.type === "bicycles" && (
                   <>
                     {/* Bike type */}
                     <div className="flex justify-between items-center">
@@ -522,7 +719,7 @@ export default function FacilityDetailPage() {
 
       {/* RENTAL PLAN MODAL (bicycles only) */}
       <AnimatePresence>
-        {facility.type === "bicycles" && showPlanModal && (
+        {currentFacility.type === "bicycles" && showPlanModal && (
           <>
             <motion.div
               initial={{ opacity: 0 }}

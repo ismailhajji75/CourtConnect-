@@ -32,9 +32,10 @@ export function NotificationBell() {
       document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const formatTime = (date: Date) => {
+  const formatTime = (date: Date | string) => {
+    const d = typeof date === "string" ? new Date(date) : date;
     const now = new Date();
-    const diff = now.getTime() - date.getTime();
+    const diff = now.getTime() - d.getTime();
 
     const minutes = Math.floor(diff / 60000);
     if (minutes < 1) return 'Just now';

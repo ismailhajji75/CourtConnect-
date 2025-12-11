@@ -3,56 +3,27 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { PlusIcon, TrashIcon } from 'lucide-react';
 
 // ⭐ UPDATED → Import from unified shared types
-import { Availability } from '../types';
-
-interface AvailabilityManagerProps {
-  availabilities: Availability[];
-  onAdd: (availability: Omit<Availability, 'id'>) => void;
-  onDelete: (id: string) => void;
-}
+import { Availability } from '../types/types';
+import { useAvailability } from '../../hooks/useAvailability';
 
 const FACILITIES = [
-  {
-    value: '5v5 Court (Proxy Area)',
-    type: 'court' as const,
-    lights: true,
-  },
-  {
-    value: 'New Soccer Field (Half-Field)',
-    type: 'court' as const,
-    lights: true,
-  },
-  {
-    value: 'Tennis Courts',
-    type: 'court' as const,
-    lights: true,
-  },
-  {
-    value: 'Padel Court',
-    type: 'court' as const,
-    lights: true,
-  },
-  {
-    value: 'Basketball Mini-Court (Gym Side)',
-    type: 'court' as const,
-    lights: false,
-  },
-  {
-    value: 'Bicycles',
-    type: 'bicycle' as const,
-    lights: false,
-  },
+  { id: 'futsal', label: '5v5 Court (Proxy Area)', type: 'court' as const, lights: true },
+  { id: 'newfield-half-a', label: 'New Soccer Field (Half-Field) - A', type: 'court' as const, lights: true },
+  { id: 'newfield-half-b', label: 'New Soccer Field (Half-Field) - B', type: 'court' as const, lights: true },
+  { id: 'tennis-1', label: 'Tennis Court 1', type: 'court' as const, lights: true },
+  { id: 'tennis-2', label: 'Tennis Court 2', type: 'court' as const, lights: true },
+  { id: 'padel', label: 'Padel Court', type: 'court' as const, lights: true },
+  { id: 'basket-mini', label: 'Basketball Mini-Court (Gym Side)', type: 'court' as const, lights: false },
+  { id: 'bicycles', label: 'Bicycles', type: 'bicycle' as const, lights: false },
 ];
 
-export function AvailabilityManager({
-  availabilities,
-  onAdd,
-  onDelete,
-}: AvailabilityManagerProps) {
+export function AvailabilityManager() {
+  const { availabilities, addAvailability, deleteAvailability } = useAvailability();
   const [showForm, setShowForm] = useState(false);
 
   const [formData, setFormData] = useState({
     facility: '',
+    facilityId: '',
     facilityType: 'court' as 'court' | 'bicycle',
     date: '',
     startTime: '',
@@ -62,11 +33,12 @@ export function AvailabilityManager({
   });
 
   const handleFacilityChange = (facilityValue: string) => {
-    const facility = FACILITIES.find((f) => f.value === facilityValue);
+    const facility = FACILITIES.find((f) => f.id === facilityValue);
     if (facility) {
       setFormData({
         ...formData,
-        facility: facilityValue,
+        facility: facility.label,
+        facilityId: facility.id,
         facilityType: facility.type,
         lightsAvailable: facility.lights,
         price: facility.type === 'bicycle' ? '10' : '',
@@ -88,13 +60,15 @@ export function AvailabilityManager({
     return 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     const calculatedPrice = calculatePrice();
 
-    onAdd({
-      facility: formData.facility,
+    const created = await addAvailability({
+      facility: formData.facility || formData.facilityId,
+      facilityId: formData.facilityId || formData.facility,
+      facilityLabel: formData.facility,
       facilityType: formData.facilityType,
       date: formData.date,
       startTime: formData.startTime,
@@ -105,8 +79,11 @@ export function AvailabilityManager({
         parseInt(formData.startTime.split(':')[0]) >= 18,
     });
 
+    if (!created) return;
+
     setFormData({
       facility: '',
+      facilityId: '',
       facilityType: 'court',
       date: '',
       startTime: '',
@@ -223,7 +200,7 @@ export function AvailabilityManager({
                   </label>
 
                   <select
-                    value={formData.facility}
+                    value={formData.facilityId}
                     onChange={(e) => handleFacilityChange(e.target.value)}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:border-[#6CABA8] focus:outline-none"
                     required
@@ -232,16 +209,16 @@ export function AvailabilityManager({
 
                     <optgroup label="Courts">
                       {FACILITIES.filter((f) => f.type === 'court').map((f) => (
-                        <option key={f.value} value={f.value}>
-                          {f.value}
+                        <option key={f.id} value={f.id}>
+                          {f.label}
                         </option>
                       ))}
                     </optgroup>
 
                     <optgroup label="Equipment">
                       {FACILITIES.filter((f) => f.type === 'bicycle').map((f) => (
-                        <option key={f.value} value={f.value}>
-                          {f.value}
+                        <option key={f.id} value={f.id}>
+                          {f.label}
                         </option>
                       ))}
                     </optgroup>
@@ -373,7 +350,7 @@ export function AvailabilityManager({
                   </div>
 
                   <motion.button
-                    onClick={() => onDelete(availability.id)}
+                  onClick={() => deleteAvailability(availability.id)}
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"

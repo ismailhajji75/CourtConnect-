@@ -22,40 +22,60 @@ import {
 
 export default function MyBookingsPage() {
   const navigate = useNavigate();
-  const { bookings, cancelBooking } = useBookings();
+  const { bookings, cancelBooking, refreshBookings } = useBookings();
 
   const [selectedBooking, setSelectedBooking] = useState<string | null>(null);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const selectedBookingData = bookings.find((b) => b.id === selectedBooking);
 
   // --------------------------
   // GROUP BOOKINGS BY STATUS
   // --------------------------
-  const pendingBookings = bookings.filter((b) => b.status === "pending");
-  const approvedBookings = bookings.filter((b) => b.status === "approved");
-  const upcomingBookings = bookings.filter((b) => b.status === "upcoming");
-  const rejectedBookings = bookings.filter((b) => b.status === "rejected");
+  const isHistory = (b: any) => b.status === "past" || b.status === "cancelled";
+  const visible = showHistory ? bookings : bookings.filter((b) => !isHistory(b));
 
-  const pastBookings = bookings.filter(
-    (b) => b.status === "past" || b.status === "cancelled"
-  );
+  const pendingBookings = visible.filter((b) => b.status === "pending");
+  const approvedBookings = visible.filter((b) => b.status === "approved");
+  const upcomingBookings = visible.filter((b) => b.status === "upcoming");
+  const rejectedBookings = visible.filter((b) => b.status === "rejected");
+
+  const pastBookings = bookings.filter(isHistory);
 
   // --------------------------
   // CANCEL HANDLING
   // --------------------------
   const handleCancel = (id: string) => setCancellingId(id);
 
-  const confirmCancel = (id: string) => {
-    cancelBooking(id);
+  const confirmCancel = async (id: string) => {
+    const result = await cancelBooking(id);
     setCancellingId(null);
     setSelectedBooking(null);
-    toast.success("Booking cancelled");
+    if (result.ok) {
+      toast.success("Booking cancelled");
+    } else {
+      toast.error(
+        result.message ||
+          "You cannot cancel the booking within 2 hours before the start time."
+      );
+    }
   };
 
   const handleRebook = (facilityId: string) => {
     toast.info("Redirecting...");
     navigate(`/facility/${facilityId}`);
+  };
+
+  // Facility visual meta (emoji + palette)
+  const facilityMeta = (name: string = "") => {
+    const n = name.toLowerCase();
+    if (n.includes("tennis")) return { emoji: "🎾", bg: "bg-emerald-100", text: "text-emerald-800" };
+    if (n.includes("padel")) return { emoji: "🏓", bg: "bg-indigo-100", text: "text-indigo-800" };
+    if (n.includes("futsal") || n.includes("soccer") || n.includes("field")) return { emoji: "⚽", bg: "bg-amber-100", text: "text-amber-800" };
+    if (n.includes("basket")) return { emoji: "🏀", bg: "bg-orange-100", text: "text-orange-800" };
+    if (n.includes("bicycle") || n.includes("bike")) return { emoji: "🚲", bg: "bg-sky-100", text: "text-sky-800" };
+    return { emoji: "⭐", bg: "bg-gray-100", text: "text-gray-700" };
   };
 
   // --------------------------
@@ -118,63 +138,65 @@ export default function MyBookingsPage() {
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
       onClick={() => setSelectedBooking(booking.id)}
-      className="bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition cursor-pointer"
+      className="bg-white/95 backdrop-blur rounded-3xl shadow-lg border border-emerald-50 p-6 hover:shadow-xl transition cursor-pointer"
     >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-
-          <div className="flex items-center gap-3 mb-2">
-            <h3 className="text-lg font-bold" style={{ color: "#063830" }}>
-              {booking.facilityName}
-            </h3>
-
-            {/* STATUS BADGE */}
-            <StatusBadge status={booking.status} />
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-4 flex-1">
+          <div
+            className={`flex items-center justify-center w-12 h-12 rounded-2xl ${facilityMeta(booking.facilityName).bg} ${facilityMeta(booking.facilityName).text} text-xl shadow-sm`}
+          >
+            {facilityMeta(booking.facilityName).emoji}
           </div>
-
-          <div className="space-y-2 text-gray-600">
-            <div className="flex items-center gap-2">
-              <CalendarIcon className="w-4 h-4" />
-              <span>{new Date(booking.date).toLocaleDateString()}</span>
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h3 className="text-lg font-bold" style={{ color: "#063830" }}>
+                {booking.facilityName}
+              </h3>
+              <StatusBadge status={booking.status} />
             </div>
 
-            <div className="flex items-center gap-2">
-              <ClockIcon className="w-4 h-4" />
-              <span>{booking.time} ({booking.duration}h)</span>
-            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-gray-600">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="w-4 h-4" />
+                <span>{new Date(booking.date).toLocaleDateString()}</span>
+              </div>
 
-            <div className="flex items-center gap-2">
-              <DollarSignIcon className="w-4 h-4" />
-              <span>{booking.totalPrice} MAD</span>
+              <div className="flex items-center gap-2">
+                <ClockIcon className="w-4 h-4" />
+                <span>{booking.time} ({booking.duration}h)</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <DollarSignIcon className="w-4 h-4" />
+                <span>{booking.totalPrice} MAD</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* ACTION BUTTONS */}
-        <div className="flex gap-2">
-          {!["approved", "cancelled", "rejected"].includes(booking.status) && (
-            <>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedBooking(booking.id);
-                }}
-                className="px-4 py-2 rounded-lg font-medium bg-[#D8F2ED] text-[#063830]"
-              >
-                View
-              </button>
+        <div className="flex flex-col gap-2 items-end min-w-[120px]">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedBooking(booking.id);
+            }}
+            className="px-4 py-2 rounded-lg font-medium bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition"
+          >
+            View
+          </button>
 
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCancel(booking.id);
-                }}
-                className="px-4 py-2 rounded-lg font-medium text-white"
-                style={{ backgroundColor: "#063830" }}
-              >
-                Cancel
-              </button>
-            </>
+          {!["approved", "cancelled", "rejected"].includes(booking.status) && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleCancel(booking.id);
+              }}
+              className="px-4 py-2 rounded-lg font-medium text-white"
+              style={{ backgroundColor: "#063830" }}
+            >
+              Cancel
+            </button>
           )}
         </div>
       </div>
@@ -187,10 +209,32 @@ export default function MyBookingsPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-      {/* HEADER */}
+      {/* HEADER + HISTORY TOGGLE */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-        <h1 className="text-3xl font-bold" style={{ color: "#063830" }}>My Bookings</h1>
-        <p className="text-gray-600 mt-2">Manage all your bookings & requests</p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold" style={{ color: "#063830" }}>My Bookings</h1>
+            <p className="text-gray-600 mt-2">Manage all your bookings & requests</p>
+          </div>
+          <div className="flex items-center gap-3 bg-white/70 border border-emerald-50 rounded-2xl px-3 py-2 shadow-sm">
+            <button
+              onClick={() => refreshBookings()}
+              className="px-3 py-1 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition"
+            >
+              Refresh
+            </button>
+            <div className="h-5 w-px bg-emerald-100" />
+            <span className="text-sm text-gray-600">
+              {showHistory ? "Showing past & cancelled" : "History hidden to stay tidy"}
+            </span>
+            <button
+              onClick={() => setShowHistory((v) => !v)}
+              className="px-3 py-1 rounded-lg text-sm font-medium bg-emerald-50 text-emerald-900 hover:bg-emerald-100 transition"
+            >
+              {showHistory ? "Hide history" : "Show history"}
+            </button>
+          </div>
+        </div>
       </motion.div>
 
       {/* PENDING */}
@@ -222,7 +266,7 @@ export default function MyBookingsPage() {
       )}
 
       {/* PAST */}
-      {pastBookings.length > 0 && (
+      {showHistory && pastBookings.length > 0 && (
         <Section title="Past Bookings">
           {pastBookings.map(BookingCard)}
         </Section>

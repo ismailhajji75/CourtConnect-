@@ -5,14 +5,17 @@ import { Sidebar } from "../components/Sidebar";
 import { DashboardOverview } from "../components/DashboardOverview";
 import { EveningBookings } from "../components/EveningBookings";
 import { AvailabilityManager } from "../components/AvailabilityManager";
+import { BookingsTable } from "../components/BookingsTable";
 
 // GLOBAL hooks (shared with user)
 import { useBookings } from "../../hooks/useBookings";
 import { useAuth } from "../../hooks/useAuth";
+import { useAvailability } from "../../hooks/useAvailability";
 
 export function DashboardPage() {
-  const { bookings, updateBookingStatus } = useBookings();
+  const { bookings, confirmBooking, declineBooking } = useBookings();
   const { user } = useAuth();
+  const { refresh: refreshAvailability } = useAvailability();
 
   const [activeTab, setActiveTab] = useState<
     "overview" | "evening" | "availability"
@@ -32,7 +35,7 @@ export function DashboardPage() {
   }
 
   // 2) user loaded but NOT admin
-  if (!user || user.role !== "admin") {
+  if (!user || (user.role !== "ADMIN" && user.role !== "SUPERADMIN")) {
     return (
       <div className="flex items-center justify-center h-screen text-xl font-semibold text-red-600">
         Access Denied — Admins Only
@@ -44,25 +47,34 @@ export function DashboardPage() {
      ADMIN: APPROVE BOOKING  (correct status)
   ------------------------------------------- */
   const handleConfirm = (id: string) => {
-    updateBookingStatus(id, "approved");
+    confirmBooking(id);
   };
 
   /* -------------------------------------------
      ADMIN: CANCEL BOOKING
   ------------------------------------------- */
   const handleCancel = (id: string) => {
-    updateBookingStatus(id, "cancelled");
+    declineBooking(id);
   };
 
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Sidebar activeTab={activeTab} onTabChange={(tab) => setActiveTab(tab as any)} />
 
       {/* Main Content */}
       <main className="flex-1 p-6 overflow-y-auto">
         {activeTab === "overview" && (
-          <DashboardOverview bookings={bookings} />
+          <div className="space-y-6">
+            <DashboardOverview bookings={bookings} />
+
+            {/* Confirmed bookings list for admins */}
+            <BookingsTable
+              bookings={bookings.filter(
+                (b) => b.status === "upcoming" || b.status === "approved"
+              )}
+            />
+          </div>
         )}
 
         {activeTab === "evening" && (
@@ -74,11 +86,7 @@ export function DashboardPage() {
         )}
 
         {activeTab === "availability" && (
-          <AvailabilityManager
-            availabilities={[]} 
-            onAdd={() => console.log("Add availability")}
-            onDelete={() => console.log("Delete availability")}
-          />
+          <AvailabilityManager />
         )}
       </main>
     </div>

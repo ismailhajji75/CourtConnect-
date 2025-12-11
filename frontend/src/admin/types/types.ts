@@ -75,6 +75,8 @@ export interface Availability {
   id: string;
 
   facility: string;
+  facilityId?: string;
+  facilityLabel?: string;
   facilityType?: string;
 
   date: string;           // YYYY-MM-DD

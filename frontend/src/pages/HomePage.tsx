@@ -9,6 +9,8 @@ import {
   PackageIcon,
   BoxIcon,
 } from "lucide-react";
+import WeatherTimeWidget from "../components/WeatherTimeWidget";
+import { useAvailability } from "../hooks/useAvailability";
 
 const facilityIcons = {
   tennis: BoxIcon,
@@ -21,9 +23,13 @@ const facilityIcons = {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { availabilities, refresh } = useAvailability();
   const [activeTab, setActiveTab] = useState<string>("tennis");
 
   const activeFacility = facilities.find((f) => f.type === activeTab);
+  const tennisCourts = facilities.filter((f) => f.type === "tennis");
+  const activeTitle =
+    activeFacility?.type === "tennis" ? "Tennis Court" : activeFacility?.name;
 
   const tabs = [
     { id: "tennis", label: "Tennis" },
@@ -39,21 +45,58 @@ export default function HomePage() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.6, ease: "easeOut" }}
-      className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+      className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12"
+      style={{
+        borderRadius: "32px",
+        background:
+          "radial-gradient(140% 140% at 15% 20%, rgba(6,56,48,0.12), transparent 45%), radial-gradient(120% 120% at 85% 0%, rgba(15,118,110,0.1), transparent 40%), linear-gradient(180deg, rgba(216,242,237,0.8) 0%, rgba(216,242,237,0.5) 60%, rgba(255,255,255,0.6) 100%)",
+      }}
     >
+      {/* floating accents */}
+      <div className="absolute -z-10 inset-0 pointer-events-none">
+        <div className="absolute -top-10 -left-10 w-48 h-48 bg-emerald-200 rounded-full blur-3xl opacity-50" />
+        <div className="absolute top-20 right-0 w-56 h-56 bg-teal-200 rounded-full blur-3xl opacity-50" />
+        <div className="absolute bottom-10 left-10 w-40 h-40 bg-white rounded-full blur-3xl opacity-40" />
+      </div>
+
+      {/* ---------------- LIVE INFO ---------------- */}
+      <div className="mb-10">
+        <div className="rounded-3xl shadow-xl border border-emerald-50 bg-white/80 backdrop-blur">
+          <WeatherTimeWidget />
+        </div>
+      </div>
+
       {/* ---------------- HERO ---------------- */}
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="text-center mb-12"
+        className="text-center mb-10 space-y-4"
       >
-        <h1 className="text-4xl sm:text-5xl font-bold mb-4" style={{ color: "#063830" }}>
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 text-emerald-800 text-sm font-medium shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          Live campus booking
+        </div>
+        <h1 className="text-4xl sm:text-5xl font-bold" style={{ color: "#063830" }}>
           Your Game, One Tap Away
         </h1>
-        <p className="text-lg sm:text-xl mb-8" style={{ color: "#6CABA8" }}>
+        <p className="text-lg sm:text-xl text-[#0f766e]">
           Book your favorite sports facilities on campus
         </p>
+        <div className="flex justify-center gap-3">
+          <button
+            onClick={() => navigate("/bookings")}
+            className="px-5 py-3 rounded-xl text-sm font-semibold bg-[#063830] text-white shadow-lg hover:translate-y-[-1px] transition"
+          >
+            View my bookings
+          </button>
+          <button
+            onClick={() => document.getElementById("facility-spotlight")?.scrollIntoView({ behavior: "smooth" })}
+            className="px-5 py-3 rounded-xl text-sm font-semibold bg-white text-[#063830] border border-emerald-100 shadow-sm hover:border-emerald-300 transition"
+          >
+            Explore facilities
+          </button>
+        </div>
       </motion.div>
 
       {/* ---------------- TABS ---------------- */}
@@ -70,24 +113,25 @@ export default function HomePage() {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 300, damping: 15 }}
-                className="relative flex items-center gap-2 px-6 py-3 rounded-lg font-medium whitespace-nowrap transition-all"
+                className="relative flex items-center gap-3 px-7 py-3 rounded-xl font-semibold whitespace-nowrap transition-all shadow-md"
                 style={{
-                  color: isActive ? "white" : "#6CABA8",
-                  backgroundColor: isActive ? "#063830" : "white",   // ✅ FIXED
+                  color: isActive ? "#063830" : "#0f766e",
+                  backgroundColor: isActive ? "#d8f2ed" : "white",
                 }}
               >
                 {/* Background glow (behind content) */}
                 {isActive && (
                   <motion.div
                     layoutId="activeTabGlow"
-                    className="absolute inset-0 rounded-lg"
-                    style={{ backgroundColor: "#063830", zIndex: -1 }}
+                    className="absolute inset-0 rounded-xl border border-emerald-200"
+                    style={{ backgroundColor: "#e8f9f5", zIndex: -1 }}
                     transition={{ type: "spring", stiffness: 250, damping: 20 }}
                   />
                 )}
 
-                <Icon className="w-5 h-5" />
+                <Icon className="w-6 h-6" />
                 {tab.label}
+                {isActive && <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-emerald-500" />}
               </motion.button>
             );
           })}
@@ -98,19 +142,20 @@ export default function HomePage() {
       <AnimatePresence mode="wait">
         {activeFacility && (
           <motion.div
+            id="facility-spotlight"
             key={activeFacility.id}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.3 }}
             whileHover={{ scale: 1.005, transition: { duration: 0.25 } }}
-            className="bg-white rounded-2xl shadow-lg p-8"
+            className="bg-white rounded-3xl shadow-2xl p-8 border border-emerald-50"
           >
             <div className="grid md:grid-cols-2 gap-8">
               {/* LEFT SIDE */}
               <div>
                 <h2 className="text-3xl font-bold mb-4" style={{ color: "#063830" }}>
-                  {activeFacility.name}
+                  {activeTitle}
                 </h2>
 
                 <p className="text-gray-600 mb-6">{activeFacility.description}</p>
@@ -172,11 +217,11 @@ export default function HomePage() {
                 {activeFacility.image && (
                   <motion.img
                     src={activeFacility.image}
-                    alt={activeFacility.name}
+                    alt={activeTitle || activeFacility.name}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 0.5 }}
-                    className="w-full rounded-xl mb-6 shadow-md object-cover"
+                    className="w-full rounded-2xl mb-6 shadow-xl object-cover"
                     style={{ maxHeight: "260px" }}
                   />
                 )}
@@ -205,16 +250,82 @@ export default function HomePage() {
                   </motion.div>
                 )}
 
-                {activeFacility.capacity && (
-                  <p className="text-center text-sm text-gray-500 mt-4">
-                    Capacity: {activeFacility.capacity}
-                  </p>
+                {activeFacility.type === "tennis" ? (
+                  <div className="flex gap-3 mt-4 w-full">
+                    {tennisCourts.map((court) => (
+                      <button
+                        key={court.id}
+                        onClick={() => navigate(`/facility/${court.id}`)}
+                        className="flex-1 py-3 rounded-lg text-white font-medium text-sm"
+                        style={{ backgroundColor: "#063830" }}
+                      >
+                        {court.id.endsWith("-1")
+                          ? "Court 1"
+                          : court.id.endsWith("-2")
+                          ? "Court 2"
+                          : court.name}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  activeFacility.capacity && (
+                    <p className="text-center text-sm text-gray-500 mt-4">
+                      Capacity: {activeFacility.capacity}
+                    </p>
+                  )
                 )}
               </div>
             </div>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ---------------- AVAILABILITY LIST ---------------- */}
+      <div className="mt-12">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-xl font-bold" style={{ color: "#063830" }}>
+            Added Availability
+          </h3>
+          <button
+            onClick={refresh}
+            className="text-sm text-[#0f766e] hover:text-[#063830]"
+          >
+            Refresh
+          </button>
+        </div>
+
+        {availabilities.length === 0 ? (
+          <p className="text-gray-500">No availability slots yet.</p>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-3">
+            {availabilities.map((slot) => (
+              <div
+                key={slot.id}
+                className="p-4 bg-white rounded-2xl shadow-md border border-emerald-50 flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-800 flex items-center justify-center text-lg">
+                    🗓️
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#063830]">{slot.facility}</p>
+                    <p className="text-sm text-gray-600">
+                      {slot.date} · {slot.startTime} - {slot.endTime}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {slot.price === 0 ? "FREE" : `${slot.price} MAD`}
+                      {slot.lightsAvailable ? " · Evening slot" : ""}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-xs text-gray-500 uppercase tracking-wide px-3 py-1 rounded-full bg-emerald-50">
+                  {slot.facilityType}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </motion.div>
   );
 }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Booking } from '../types';
+import { Booking } from '../types/types';
 
 interface BookingsTableProps {
   bookings: Booking[];

@@ -31,7 +31,7 @@ export interface Facility {
 export const facilities: Facility[] = [
   /* -------------------- FUTSAL (PROXY) -------------------- */
   {
-    id: "futsal-proxy",
+    id: "futsal", // backend expects "futsal"
     name: "5v5 Futsal Court (Proxy Area)",
     type: "futsal",
     description: "Small futsal 5v5 court next to the proxy area.",
@@ -54,7 +54,7 @@ export const facilities: Facility[] = [
 
   /* -------------------- SOCCER HALF FIELD LEFT -------------------- */
   {
-    id: "soccer-left",
+    id: "newfield-half-a", // backend expects "newfield-half-a"
     name: "New Soccer Field – Left Side",
     type: "soccer",
     description: "Half-field booking on new soccer field (left side).",
@@ -77,7 +77,7 @@ export const facilities: Facility[] = [
 
   /* -------------------- SOCCER HALF FIELD RIGHT -------------------- */
   {
-    id: "soccer-right",
+    id: "newfield-half-b", // backend expects "newfield-half-b"
     name: "New Soccer Field – Right Side",
     type: "soccer",
     description: "Half-field booking on new soccer field (right side).",

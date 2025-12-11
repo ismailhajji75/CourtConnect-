@@ -8,8 +8,26 @@ import {
 import { sendEmail } from "../utils/email.js";
 
 // Helpers
-const toDateTime = (dateStr, timeStr) =>
-  new Date(`${dateStr}T${timeStr}:00`);
+const MOROCCO_TZ = "Africa/Casablanca";
+const matchesFacility = (a, b) =>
+  a && b && String(a).toLowerCase() === String(b).toLowerCase();
+
+// Convert a date+time string (YYYY-MM-DD, HH:mm) to a Date object anchored to Morocco time
+const toMoroccoDateTime = (dateStr, timeStr) => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const [hh, mm] = timeStr.split(":").map(Number);
+  // Build as UTC but without offset shifts, effectively treating the input as local Morocco wall-clock time.
+  return new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1, hh ?? 0, mm ?? 0));
+};
+
+const parseHourMinute = (timeStr) => {
+  const [h, m] = (timeStr || "00:00").split(":").map(Number);
+  return { hour: h || 0, minute: m || 0 };
+};
+
+// Current time in Morocco
+const moroccoNow = () =>
+  new Date(new Date().toLocaleString("en-US", { timeZone: MOROCCO_TZ }));
 
 const diffInMinutes = (a, b) => (a.getTime() - b.getTime()) / (1000 * 60);
 
@@ -42,11 +60,10 @@ export const createBooking = (req, res) => {
   }
 
   // Always 1-hour slot for courts / fields / padel
-  const start = toDateTime(date, startTime);
+  const start = toMoroccoDateTime(date, startTime);
   const end = new Date(start.getTime() + 60 * 60 * 1000);
 
-  const startHour = start.getHours();
-  const startMinute = start.getMinutes();
+  const { hour: startHour, minute: startMinute } = parseHourMinute(startTime);
 
   // -------- RULES FOR FUTSAL & HALF FIELD --------
   if (facility.type === "futsal" || facility.type === "half_field") {
@@ -84,11 +101,11 @@ export const createBooking = (req, res) => {
   // (PENDING or CONFIRMED). CANCELLED bookings are ignored.
 
   const conflict = bookings.find((b) => {
-    if (b.facilityId !== facility.id || b.date !== date) return false;
-    if (b.status === "CANCELLED") return false;
+    if (!matchesFacility(b.facilityId, facility.id) || b.date !== date) return false;
+    if (b.status === "CANCELLED" || b.status === "REJECTED") return false;
 
-    const existingStart = toDateTime(b.date, b.startTime);
-    const existingEnd = toDateTime(b.date, b.endTime);
+    const existingStart = toMoroccoDateTime(b.date, b.startTime);
+    const existingEnd = toMoroccoDateTime(b.date, b.endTime);
     return start < existingEnd && end > existingStart;
   });
 
@@ -116,6 +133,16 @@ export const createBooking = (req, res) => {
   }
   if (facility.type === "half_field" && startHour >= 18) {
     totalPrice += 40;
+  }
+
+  // Generic evening light fee (tennis, padel, basketball, etc.)
+  if (
+    (facility.type === "tennis" ||
+      facility.type === "padel" ||
+      facility.type === "basketball") &&
+    startHour >= 18
+  ) {
+    totalPrice += 30;
   }
 
   // Bicycle pricing
@@ -161,18 +188,20 @@ export const createBooking = (req, res) => {
 
   // -------- CREATE PENDING BOOKING --------
 
+  const needsPaymentApproval = startHour >= 18;
+
   const booking = {
     id: getNextBookingId(),
     userId: req.user.id,
     facilityId: facility.id,
     date,
     startTime,
-    endTime: `${end.getHours().toString().padStart(2, "0")}:${end
-      .getMinutes()
+    endTime: `${end.getUTCHours().toString().padStart(2, "0")}:${end
+      .getUTCMinutes()
       .toString()
       .padStart(2, "0")}`,
     totalPrice,
-    status: "PENDING", // waits for admin confirmation
+    status: needsPaymentApproval ? "PENDING" : "CONFIRMED",
     createdAt: new Date().toISOString(),
     bikeOptions,
   };
@@ -183,12 +212,12 @@ export const createBooking = (req, res) => {
   sendEmail(
     req.user.email,
     "AUI CourtConnect – Booking Request Received",
-    `Hi ${req.user.username}, your booking request is created and is pending confirmation by the admin.
+    `Hi ${req.user.username}, your booking request was created.
 Facility: ${facility.name}
 Date: ${date}
 Time: ${booking.startTime}–${booking.endTime}
 Price: ${totalPrice} dh
-Status: PENDING (waiting for CashWallet confirmation).`
+Status: ${booking.status === "PENDING" ? "PENDING (waiting for approval after 18:00)" : "CONFIRMED"}.`
   );
 
   res.status(201).json({ message: "Booking created (pending)", booking });
@@ -197,10 +226,28 @@ Status: PENDING (waiting for CashWallet confirmation).`
 // ---------------- GET BOOKINGS ----------------
 
 export const getBookings = (req, res) => {
-  if (req.user.role === "ADMIN") {
-    return res.json(bookings);
+  const isAdmin = req.user.role === "ADMIN" || req.user.role === "SUPERADMIN";
+
+  // Enrich with user + facility info so the admin dashboard can show names/emails
+  const shapeBooking = (b) => {
+    const user = users.find((u) => u.id === b.userId);
+    const facility = facilities.find((f) => f.id === b.facilityId);
+    return {
+      ...b,
+      userName: user?.username,
+      userEmail: user?.email,
+      facilityName: facility?.name ?? b.facilityId,
+    };
+  };
+
+  if (isAdmin) {
+    return res.json(bookings.map(shapeBooking));
   }
-  const own = bookings.filter((b) => b.userId === req.user.id);
+
+  const own = bookings
+    .filter((b) => b.userId === req.user.id)
+    .map(shapeBooking);
+
   res.json(own);
 };
 
@@ -224,17 +271,17 @@ export const cancelBooking = (req, res) => {
     return res.status(404).json({ error: "Booking not found" });
   }
 
-  if (req.user.role !== "ADMIN" && booking.userId !== req.user.id) {
+  if (!["ADMIN", "SUPERADMIN"].includes(req.user.role) && booking.userId !== req.user.id) {
     return res
       .status(403)
       .json({ error: "You are not allowed to cancel this booking." });
   }
 
-  const start = toDateTime(booking.date, booking.startTime);
-  const now = new Date();
+  const start = toMoroccoDateTime(booking.date, booking.startTime);
+  const now = moroccoNow();
   const minutesBeforeStart = diffInMinutes(start, now);
 
-  // Students: cannot cancel ≤ 2 hours before start
+  // Students: cannot cancel less than 2 hours before start
   if (req.user.role === "STUDENT" && minutesBeforeStart <= 120 && minutesBeforeStart > 0) {
     return res.status(400).json({
       error:
@@ -258,6 +305,17 @@ Time: ${booking.startTime}–${booking.endTime}
 Status: CANCELLED`
     );
   }
+
+  // Notify other users that a slot became free
+  users
+    .filter((u) => u.id !== booking.userId)
+    .forEach((u) =>
+      sendEmail(
+        u.email,
+        "CourtConnect – Slot Available",
+        `A booking was cancelled for ${facility?.name ?? "a facility"} on ${booking.date} at ${booking.startTime}.`
+      )
+    );
 
   res.json({ message: "Booking cancelled", booking });
 };
@@ -290,6 +348,14 @@ export const confirmBooking = (req, res) => {
       .json({ error: "Only pending bookings can be confirmed." });
   }
 
+  // Only bookings after 18:00 require manual payment approval
+  const startHour = Number(booking.startTime.split(":")[0]);
+  if (startHour < 18) {
+    return res
+      .status(400)
+      .json({ error: "This booking does not require payment approval." });
+  }
+
   const user = users.find((u) => u.id === booking.userId);
   if (!user) {
     return res.status(404).json({ error: "User not found for this booking." });
@@ -320,4 +386,75 @@ Status: CONFIRMED`
   );
 
   res.json({ message: "Booking confirmed and CashWallet updated.", booking });
+};
+
+// ---------------- ADMIN – DECLINE BOOKING AFTER 6PM ----------------
+export const declineBooking = (req, res) => {
+  const bookingId = Number(req.params.id);
+  const booking = bookings.find((b) => b.id === bookingId);
+
+  if (!booking) {
+    return res.status(404).json({ error: "Booking not found" });
+  }
+
+  if (booking.status !== "PENDING") {
+    return res.status(400).json({ error: "Only pending bookings can be declined." });
+  }
+
+  const startHour = Number(booking.startTime.split(":")[0]);
+  if (startHour < 18) {
+    return res.status(400).json({ error: "This booking does not require payment approval." });
+  }
+
+  booking.status = "REJECTED";
+  booking.declinedAt = new Date().toISOString();
+
+  const user = users.find((u) => u.id === booking.userId);
+  const facility = facilities.find((f) => f.id === booking.facilityId);
+
+  if (user) {
+    sendEmail(
+      user.email,
+      "AUI CourtConnect – Booking Declined",
+      `Hi ${user.username}, your booking was declined by the admin.
+Facility: ${facility?.name ?? "Unknown"}
+Date: ${booking.date}
+Time: ${booking.startTime}–${booking.endTime}
+Status: REJECTED`
+    );
+  }
+
+  res.json({ message: "Booking declined.", booking });
+};
+
+// ---------------- ADMIN – CLEAR ALL BOOKINGS (reset in-memory) ----------------
+export const clearBookings = (_req, res) => {
+  bookings.length = 0;
+  res.json({ message: "All bookings cleared (in-memory reset)." });
+};
+
+// ---------------- AVAILABILITY (for students to see taken slots) ----------------
+export const getAvailability = (req, res) => {
+  const { facilityId } = req.params;
+  const { date } = req.query;
+
+  if (!facilityId || !date) {
+    return res.status(400).json({ error: "facilityId and date are required" });
+  }
+
+  const dayBookings = bookings
+    .filter(
+      (b) =>
+        matchesFacility(b.facilityId, facilityId) &&
+        b.date === date &&
+        b.status !== "CANCELLED" &&
+        b.status !== "REJECTED"
+    )
+    .map((b) => ({
+      startTime: b.startTime,
+      endTime: b.endTime,
+      status: b.status,
+    }));
+
+  res.json({ facilityId, date, slots: dayBookings });
 };

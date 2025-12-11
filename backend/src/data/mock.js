@@ -14,11 +14,27 @@ export const users = [
   },
   {
     id: 2,
+    username: "SuperAdmin",
+    email: "superadmin@courtconnect.com",
+    role: "SUPERADMIN",
+    password: bcrypt.hashSync("Q!7zP@92kL#tX4mB", 10),
+    balance: 9999,
+  },
+  {
+    id: 3,
     username: "Nabil",
     email: "n.bachiri@aui.ma",
     role: "STUDENT",
     password: bcrypt.hashSync("nabil123", 10),
     balance: 200, // example CashWallet balance
+  },
+  {
+    id: 4,
+    username: "Imane",
+    email: "i.hajji@aui.ma",
+    role: "STUDENT",
+    password: bcrypt.hashSync("imane123", 10),
+    balance: 150,
   },
 ];
 
@@ -102,3 +118,8 @@ export const getNextBookingId = () => nextBookingId++;
 
 export const notifications = [];// filled by utils/email.js
 export const resetTokens = [];// { token, userId, expiresAt }
+
+// AVAILABILITY SLOTS (admin-managed)
+export const availabilities = [];
+let nextAvailabilityId = 1;
+export const getNextAvailabilityId = () => nextAvailabilityId++;

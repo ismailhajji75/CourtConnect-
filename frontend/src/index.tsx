@@ -5,12 +5,15 @@ import "./index.css";
 
 import { AuthProvider } from "./hooks/useAuth";
 import { BookingsProvider } from "./hooks/useBookings";
+import { AvailabilityProvider } from "./hooks/useAvailability";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <AuthProvider>
       <BookingsProvider>
-        <App />
+        <AvailabilityProvider>
+          <App />
+        </AvailabilityProvider>
       </BookingsProvider>
     </AuthProvider>
   </React.StrictMode>

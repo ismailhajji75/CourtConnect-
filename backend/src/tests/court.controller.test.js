@@ -24,12 +24,10 @@ const createMockRes = () => {
   return res;
 };
 
-// hna unit test: Futsal booking > 1 hour should be rejected
-test("createBooking rejects futsal bookings longer than 1 hour", () => {
-  // hnaya we clear previous bookings
+// Sanity check: Futsal booking auto-creates 1h slot starting at startTime
+test("createBooking creates 1-hour futsal booking and blocks overlap", () => {
   bookings.length = 0;
 
-  // Fake logged in STUDENT user b smyti ana hhh
   const req = {
     user: {
       id: 10,
@@ -38,26 +36,26 @@ test("createBooking rejects futsal bookings longer than 1 hour", () => {
       role: "STUDENT",
     },
     body: {
-      facilityId: 1,          // 1 = Futsal Court 5v5 kayn f mock.js
+      facilityId: "futsal",
       date: "2025-12-05",
       startTime: "16:00",
-      endTime: "17:30",       // 1h30 should NOT be allowed
-      withLight: true,
     },
   };
 
   const res = createMockRes();
-
   createBooking(req, res);
 
-  // DEBUG: see what controller returned
-  console.log("DEBUG RES:", res.statusCode, res.body);
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.booking.startTime, "16:00");
+  assert.equal(res.body.booking.endTime, "17:00");
 
-  // We only require that it returns a 400 error with SOME error message
-  assert.equal(res.statusCode, 400, "Expected status code 400 for invalid futsal duration");
-  assert.ok(res.body, "Response body should not be empty");
-  assert.ok(
-    typeof res.body.error === "string",
-    "Response should contain an 'error' string"
-  );
+  // Overlap attempt should be rejected
+  const overlapReq = {
+    ...req,
+    user: { ...req.user, id: 11, email: "second@aui.ma" },
+    body: { ...req.body, startTime: "16:30" },
+  };
+  const overlapRes = createMockRes();
+  createBooking(overlapReq, overlapRes);
+  assert.equal(overlapRes.statusCode, 400);
 });

@@ -1,18 +1,18 @@
 import React from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom"; // ⭐ ADDED navigate
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { HomeIcon, CalendarIcon, UserIcon, LogOutIcon } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
+import NotificationBell from "./NotificationBell";
 
 export default function Header() {
   const location = useLocation();
-  const navigate = useNavigate(); // ⭐ REQUIRED FOR REDIRECT
-  const { logout, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { logout, isAuthenticated, user } = useAuth();
 
   // Hide Header on login + admin pages
   const hideHeader =
-    location.pathname === "/login" ||
-    location.pathname.startsWith("/admin");
+    location.pathname === "/login" || location.pathname.startsWith("/admin");
 
   if (hideHeader || !isAuthenticated) return null;
 
@@ -22,10 +22,9 @@ export default function Header() {
     { id: "profile", label: "Profile", icon: UserIcon, path: "/profile" },
   ];
 
-  // ⭐ UPDATED LOGOUT HANDLER
   const handleLogout = () => {
     logout();
-    navigate("/login"); // ⭐ Redirect to login page
+    navigate("/login");
   };
 
   return (
@@ -58,11 +57,7 @@ export default function Header() {
                   />
                 )}
 
-                <Icon
-                  className="w-5 h-5"
-                  color={isActive ? "#FFFFFF" : "#063830"}
-                />
-
+                <Icon className="w-5 h-5" color={isActive ? "#FFFFFF" : "#063830"} />
                 {item.label}
               </motion.div>
             </Link>
@@ -70,10 +65,21 @@ export default function Header() {
         })}
       </nav>
 
-      {/* Logout Button */}
-      <button onClick={handleLogout} className="p-2 hover:opacity-70 transition">
-        <LogOutIcon className="w-6 h-6 text-[#063830]" />
-      </button>
+      <div className="flex items-center gap-3">
+        {/** Current user display */}
+        <div className="hidden sm:flex flex-col items-end text-right">
+          <span className="text-sm font-semibold text-[#063830]">
+            {user?.username ?? "User"}
+          </span>
+          <span className="text-xs text-gray-500 max-w-[180px] truncate">
+            {user?.email}
+          </span>
+        </div>
+        <NotificationBell />
+        <button onClick={handleLogout} className="p-2 hover:opacity-70 transition">
+          <LogOutIcon className="w-6 h-6 text-[#063830]" />
+        </button>
+      </div>
     </header>
   );
 }

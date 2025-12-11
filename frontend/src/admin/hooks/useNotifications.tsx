@@ -67,7 +67,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
        MARK ALL AS READ
   --------------------------------------------------- */
   const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    // Clear all to avoid clutter in the admin panel
+    setNotifications([]);
   };
 
   const unreadCount = notifications.filter((n) => !n.read).length;

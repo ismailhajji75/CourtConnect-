@@ -1,9 +1,6 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom";
 
-import { AuthProvider } from "./hooks/useAuth";
-import { BookingsProvider } from "./hooks/useBookings";
-
 import Header from "./components/Header";
 
 import LoginPage from "./pages/LoginPage";
@@ -27,34 +24,25 @@ function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Layout>
-          <Routes>
+    <Router>
+      <Layout>
+        <Routes>
 
-            {/* Redirect */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
+          {/* Redirect */}
+          <Route path="/" element={<Navigate to="/login" replace />} />
 
-            {/* USER ROUTES */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/home" element={<HomePage />} />
-            <Route path="/facility/:facilityId" element={<FacilityDetailPage />} />
-            <Route path="/bookings" element={<MyBookingsPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
+          {/* USER ROUTES */}
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/facility/:facilityId" element={<FacilityDetailPage />} />
+          <Route path="/bookings" element={<MyBookingsPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
 
-            {/* ADMIN ROUTE (WRAPPED IN BOOKINGS PROVIDER) */}
-            <Route
-              path="/admin/dashboard"
-              element={
-                <BookingsProvider>
-                  <AdminDashboard />
-                </BookingsProvider>
-              }
-            />
+          {/* ADMIN ROUTE */}
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
 
-          </Routes>
-        </Layout>
-      </Router>
-    </AuthProvider>
+        </Routes>
+      </Layout>
+    </Router>
   );
 }

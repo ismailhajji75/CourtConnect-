@@ -36,7 +36,7 @@ export function Sidebar({ activeTab, onTabChange }: SidebarProps) {
   const navigate = useNavigate();
 
   // 🚫 Prevent non-admins from ever seeing the sidebar
-  if (user?.role !== "admin") return null;
+  if (user?.role !== "ADMIN" && user?.role !== "SUPERADMIN") return null;
 
   const handleLogout = () => {
     logout();
