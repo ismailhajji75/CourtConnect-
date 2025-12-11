@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.log
+
+# Environment
+.env
+.env.*
+backend/.env
+frontend/.env
+frontend/.env.*
+
+# Prisma client cache
+backend/node_modules/.prisma/
+backend/node_modules/.cache/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# IDE/editor
+.vscode/
+.DS_Store
